@@ -2,6 +2,7 @@ import {
   memo,
   useEffect,
   useRef,
+  useMemo,
   useState,
   ChangeEvent,
   useCallback,
@@ -12,6 +13,7 @@ import {
   RefreshCw,
   Copy,
   Share2,
+  QrCode,
   Github,
   ArrowUp,
   ArrowDown,
@@ -30,7 +32,9 @@ import {
   Globe,
   Shield,
   WifiOff,
+  Wifi,
 } from "lucide-react";
+import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
 import { Tooltip } from "../../components/tooltip";
 import { socket, type ConnectionState } from "../../utils/throw-socket";
@@ -135,45 +139,7 @@ const CONNECTION_LABEL: Record<ConnectionState, string> = {
   failed: "Connection lost",
 };
 
-const PARTICLE_COLORS = [
-  "#ED4B9E",
-  "#F472B6",
-  "#FB7185",
-  "#34D399",
-  "#38BDF8",
-  "#FBBF24",
-] as const;
 
-// Generated once at module load so re-renders never reshuffle the field.
-const PARTICLES_DATA = Array.from({ length: 20 }, (_, i) => ({
-  id: i,
-  left: `${Math.random() * 100}%`,
-  delay: `${Math.random() * 20}s`,
-  duration: `${15 + Math.random() * 20}s`,
-  color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
-  size: 2 + Math.random() * 4,
-}));
-
-const Particles = memo(
-  () => (
-    <S.ParticlesContainer aria-hidden="true">
-      {PARTICLES_DATA.map((p) => (
-        <S.Particle
-          key={p.id}
-          style={{
-            left: p.left,
-            animationDelay: p.delay,
-            animationDuration: p.duration,
-            background: p.color,
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-          }}
-        />
-      ))}
-    </S.ParticlesContainer>
-  ),
-  () => true,
-);
 
 function vibrate(): void {
   if (window.navigator?.vibrate) window.navigator.vibrate(200);
@@ -273,6 +239,48 @@ const Toast = ({
       </S.ToastClose>
       <S.ToastProgress style={{ background: styles.color }} />
     </S.ToastContainer>
+  );
+};
+
+const QR_QUIET = 3;
+
+/** Renders `value` as an inline SVG QR code (dark modules on a white quiet zone). */
+const QrModal = ({
+  visible,
+  onClose,
+  value,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  value: string;
+}) => {
+  const { n, path } = useMemo(() => {
+    const qr = qrcode(0, "M");
+    qr.addData(value);
+    qr.make();
+    const n = qr.getModuleCount();
+    let path = "";
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++)
+        if (qr.isDark(r, c)) path += `M${c + QR_QUIET} ${r + QR_QUIET}h1v1h-1z`;
+    return { n, path };
+  }, [value]);
+  const quiet = QR_QUIET;
+  return (
+    <Modal visible={visible} onClose={onClose} title="Scan to open" width={340}>
+      <svg
+        viewBox={`0 0 ${n + quiet * 2} ${n + quiet * 2}`}
+        role="img"
+        aria-label={`QR code for ${value}`}
+        style={{ width: "100%", display: "block", background: "#fff" }}
+        shapeRendering="crispEdges"
+      >
+        <path d={path} fill="#000" />
+      </svg>
+      <p style={{ marginTop: 12, fontSize: 12, wordBreak: "break-all" }}>
+        {value}
+      </p>
+    </Modal>
   );
 };
 
@@ -403,6 +411,7 @@ export const Home = memo(() => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -1026,10 +1035,6 @@ export const Home = memo(() => {
       </S.SkipToContent>
       <S.GlobalStyle />
 
-      <div className="mesh-gradient" aria-hidden="true" />
-      <div className="noise" aria-hidden="true" />
-      <Particles />
-
       <S.ToastContainerWrapper
         role="status"
         aria-live="polite"
@@ -1040,6 +1045,12 @@ export const Home = memo(() => {
         ))}
       </S.ToastContainerWrapper>
 
+      <QrModal
+        visible={showQr}
+        onClose={() => setShowQr(false)}
+        value={`${FRONTEND_URL}/?channel=${joinedChannel ?? code}`}
+      />
+
       <HistoryModal
         visible={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
@@ -1048,346 +1059,342 @@ export const Home = memo(() => {
       />
 
       <S.MainContainer id="main-content" role="main" tabIndex={-1}>
-        <animated.div style={cardSpring}>
-          <S.CardWrapper>
-            <S.Card>
-              <S.CardBorderGlow />
-
-              <S.HeaderSection>
-                <S.LogoContainer aria-hidden="true">
-                  <S.LogoIcon>
-                    <S.UploadIconWrapper>
-                      <Upload size={30} />
-                    </S.UploadIconWrapper>
-                    <S.LogoRing />
-                    <S.LogoRingDelayed />
-                  </S.LogoIcon>
-                  <S.LogoGlowBlob />
-                </S.LogoContainer>
-
-                <S.Title>Instant Transfer</S.Title>
-                <S.Subtitle>
-                  Files relay straight between devices and are never stored.
-                </S.Subtitle>
-
-                <S.FeatureBadges>
-                  <S.Badge>
-                    <Shield size={12} />
-                    <span>Encrypted in transit</span>
-                  </S.Badge>
-                  <S.Badge>
-                    <Globe size={12} />
-                    <span>No server storage</span>
-                  </S.Badge>
-                </S.FeatureBadges>
-              </S.HeaderSection>
-
-              <CardBody>
-                {connectionState !== "open" && (
-                  <S.ConnectionBanner
-                    $state={connectionState}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <WifiOff size={14} aria-hidden="true" />
-                    <span>{CONNECTION_LABEL[connectionState]}</span>
-                    {connectionState === "failed" && (
-                      <S.BannerAction onClick={retryConnection}>
-                        Retry
-                      </S.BannerAction>
-                    )}
-                  </S.ConnectionBanner>
-                )}
-
-                <S.ChannelSection>
-                  <S.ChannelLabelWrapper>
-                    <Link2 size={12} />
-                    <span>Channel Code</span>
-                  </S.ChannelLabelWrapper>
-                  <S.ChannelBox>
-                    <S.ChannelCode aria-label={`Channel code ${joinedChannel ?? "none"}`}>
-                      {joinedChannel ?? "······"}
-                    </S.ChannelCode>
-                    <S.ActionButtons>
-                      <S.IconButton
-                        onClick={copyCode}
-                        title="Copy code"
-                        aria-label="Copy channel code"
-                      >
-                        <Copy size={16} />
-                      </S.IconButton>
-                      <S.IconButton
-                        onClick={shareLink}
-                        title="Share link"
-                        aria-label="Share channel link"
-                      >
-                        <Share2 size={16} />
-                      </S.IconButton>
-                    </S.ActionButtons>
-                  </S.ChannelBox>
-                </S.ChannelSection>
-
-                <S.JoinSection>
-                  <S.InputWrapper>
-                    <S.StyledInput
-                      onChange={handleCodeChange}
-                      onKeyDown={handleCodeKeyDown}
-                      placeholder="Enter code"
-                      value={code}
-                      maxLength={CHANNEL_CODE_LENGTH}
-                      autoComplete="off"
-                      autoCapitalize="characters"
-                      autoCorrect="off"
-                      spellCheck="false"
-                      aria-label="Channel code to join"
-                    />
-                  </S.InputWrapper>
-                  <Tooltip title="Generate new">
-                    <S.IconButtonSecondary
-                      onClick={handleGenerate}
-                      aria-label="Generate a new channel code"
-                    >
-                      <RefreshCw size={16} />
-                    </S.IconButtonSecondary>
-                  </Tooltip>
-                  <Button
-                    variant="primary"
-                    onClick={() => joinChannel(code)}
-                    style={{ height: 54 }}
-                    disabled={
-                      !isValidChannelCode(code) ||
-                      transferring ||
-                      code === joinedChannel
-                    }
-                  >
-                    <Zap size={16} />
-                    Join
-                  </Button>
-                </S.JoinSection>
-
-                {transfers.length > 0 && (
-                  <S.TransferList>
-                    {transfers.map((transfer, index) => {
-                      const receiving = transfer.direction === "receive";
-                      const percent =
-                        transfer.size > 0
-                          ? Math.min(
-                              100,
-                              (transfer.bytes / transfer.size) * 100,
-                            )
-                          : 0;
-                      return (
-                        <S.TransferItem key={transfer.id} $delay={index * 100}>
-                          <S.TransferItemHeader>
-                            <S.FileNameWrapper>
-                              <S.FileIconWrapper $receiving={receiving}>
-                                <FileIcon size={15} />
-                              </S.FileIconWrapper>
-                              <S.FileNameText title={transfer.name}>
-                                {trimFileName(transfer.name, 28)}
-                              </S.FileNameText>
-                              {transfer.compressed && (
-                                <S.ZipBadge>ZIP</S.ZipBadge>
-                              )}
-                            </S.FileNameWrapper>
-                            <S.TransferStatus $receiving={receiving}>
-                              <S.StatusDot $receiving={receiving} />
-                              {receiving ? "Receiving" : "Sending"}
-                            </S.TransferStatus>
-                            <S.CancelButton
-                              onClick={() => cancelTransfer(transfer)}
-                              title="Cancel transfer"
-                              aria-label={`Cancel ${transfer.name}`}
-                            >
-                              <X size={14} />
-                            </S.CancelButton>
-                          </S.TransferItemHeader>
-                          <S.ProgressTrack
-                            role="progressbar"
-                            aria-valuenow={Math.round(percent)}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`${transfer.name} progress`}
-                          >
-                            <S.ProgressFill style={{ width: `${percent}%` }}>
-                              <S.ProgressGlow />
-                            </S.ProgressFill>
-                          </S.ProgressTrack>
-                          <S.ProgressInfo>
-                            <S.ProgressPercent>
-                              {percent.toFixed(1)}%
-                            </S.ProgressPercent>
-                            <S.ProgressSize>
-                              {formatFileSize(transfer.bytes)} /{" "}
-                              {formatFileSize(transfer.size)}
-                            </S.ProgressSize>
-                          </S.ProgressInfo>
-                        </S.TransferItem>
-                      );
-                    })}
-                  </S.TransferList>
-                )}
-
-                {readyFiles.length > 0 && (
-                  <S.ReadyList aria-label="Files ready to save">
-                    {readyFiles.map((file) => (
-                      <S.ReadyItem key={file.id}>
-                        <S.FileNameWrapper>
-                          <S.FileIconWrapper $receiving>
-                            <CheckCircle size={15} />
-                          </S.FileIconWrapper>
-                          <S.FileNameText title={file.name}>
-                            {trimFileName(file.name, 24)}
-                          </S.FileNameText>
-                          {file.compressed && <S.ZipBadge>ZIP</S.ZipBadge>}
-                        </S.FileNameWrapper>
-                        <S.ReadyActions>
-                          <S.ReadySize>{formatFileSize(file.size)}</S.ReadySize>
-                          <Button
-                            variant="success"
-                            size="small"
-                            onClick={() => saveFile(file)}
-                          >
-                            <Download size={14} />
-                            Save
-                          </Button>
-                          <S.CancelButton
-                            onClick={() => dismissReadyFile(file.id)}
-                            title="Discard"
-                            aria-label={`Discard ${file.name}`}
-                          >
-                            <X size={14} />
-                          </S.CancelButton>
-                        </S.ReadyActions>
-                      </S.ReadyItem>
-                    ))}
-                  </S.ReadyList>
-                )}
-
-                <S.FileSection
-                  $dragging={isDragging}
-                  onDragEnter={handleDragEnter}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  aria-label="File upload area"
+        <S.Dashboard>
+          <S.Row $cols={3}>
+            <S.Panel aria-label="Channel">
+              <S.PanelHead><S.PanelTitle>Channel</S.PanelTitle></S.PanelHead>
+              <S.PanelBody>
+            <S.ChannelBox>
+              <S.ChannelCode aria-label={`Channel code ${joinedChannel ?? "none"}`}>
+                {joinedChannel ?? "······"}
+              </S.ChannelCode>
+              <S.ActionButtons>
+                <S.IconButton
+                  onClick={copyCode}
+                  title="Copy code"
+                  aria-label="Copy channel code"
                 >
-                  {transferring ? (
-                    <S.LoadingDotsWrapper
-                      aria-live="polite"
-                      aria-label="Transfer in progress"
-                    >
-                      <S.LoadingDot />
-                      <S.LoadingDot />
-                      <S.LoadingDot />
-                    </S.LoadingDotsWrapper>
+                  <Copy size={16} />
+                </S.IconButton>
+                <S.IconButton
+                  onClick={shareLink}
+                  title="Share link"
+                  aria-label="Share channel link"
+                >
+                  <Share2 size={16} />
+                </S.IconButton>
+                <S.IconButton
+                  onClick={() => setShowQr(true)}
+                  title="Show QR code"
+                  aria-label="Show QR code for this channel"
+                >
+                  <QrCode size={16} />
+                </S.IconButton>
+              </S.ActionButtons>
+            </S.ChannelBox>
+              </S.PanelBody>
+            </S.Panel>
+
+            <S.Panel aria-label="Join a channel">
+              <S.PanelHead><S.PanelTitle>Join</S.PanelTitle></S.PanelHead>
+              <S.PanelBody>
+          <S.JoinSection>
+            <S.InputWrapper>
+              <S.StyledInput
+                onChange={handleCodeChange}
+                onKeyDown={handleCodeKeyDown}
+                placeholder="Code"
+                value={code}
+                maxLength={CHANNEL_CODE_LENGTH}
+                autoComplete="off"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck="false"
+                aria-label="Channel code to join"
+              />
+            </S.InputWrapper>
+            <Tooltip title="Generate new">
+              <S.IconButtonSecondary
+                onClick={handleGenerate}
+                aria-label="Generate a new channel code"
+              >
+                <RefreshCw size={16} />
+              </S.IconButtonSecondary>
+            </Tooltip>
+            <Button
+              variant="primary"
+              onClick={() => joinChannel(code)}
+              style={{ height: 40 }}
+              disabled={
+                !isValidChannelCode(code) ||
+                transferring ||
+                code === joinedChannel
+              }
+            >
+              <Zap size={16} />
+              Join
+            </Button>
+          </S.JoinSection>
+              </S.PanelBody>
+            </S.Panel>
+
+            <S.Panel aria-label="Status">
+              <S.PanelHead><S.PanelTitle>Status</S.PanelTitle></S.PanelHead>
+              <S.PanelBody>
+                <S.StatusLine $state={connectionState} role="status" aria-live="polite">
+                  {connectionState === "open" ? (
+                    <Wifi size={14} aria-hidden="true" />
                   ) : (
-                    <S.SendButtonWrapper>
-                      <S.SendButton
-                        onClick={openFilePicker}
-                        disabled={!canSend}
-                        aria-label="Choose files to send"
+                    <WifiOff size={14} aria-hidden="true" />
+                  )}
+                  <span>{CONNECTION_LABEL[connectionState]}</span>
+                  {connectionState === "failed" && (
+                    <S.BannerAction onClick={retryConnection}>Retry</S.BannerAction>
+                  )}
+                </S.StatusLine>
+                <S.DeviceCount>
+                  <Users size={14} />
+                  <span>
+                    {connectedUsers} {connectedUsers === 1 ? "device" : "devices"}{" "}
+                    on this channel
+                  </span>
+                </S.DeviceCount>
+                <S.Note>
+                  Files are relayed over TLS and never stored on the server.
+                </S.Note>
+              </S.PanelBody>
+            </S.Panel>
+          </S.Row>
+
+          <S.Row $cols={2}>
+            <S.Panel aria-label="Send files">
+              <S.PanelHead><S.PanelTitle>Send</S.PanelTitle></S.PanelHead>
+              <S.PanelBody>
+          <S.FileSection
+            $dragging={isDragging}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            aria-label="File upload area"
+          >
+            {transferring ? (
+              <S.LoadingDotsWrapper
+                aria-live="polite"
+                aria-label="Transfer in progress"
+              >
+                <S.LoadingDot />
+                <S.LoadingDot />
+                <S.LoadingDot />
+              </S.LoadingDotsWrapper>
+            ) : (
+              <S.SendButtonWrapper>
+                <S.SendButton
+                  onClick={openFilePicker}
+                  disabled={!canSend}
+                  aria-label="Choose files to send"
+                >
+                  <S.SendButtonIcon aria-hidden="true">
+                    <Upload size={22} />
+                  </S.SendButtonIcon>
+                  <S.SendButtonText>
+                    {isDragging ? "Drop to send" : "Send Files"}
+                  </S.SendButtonText>
+                </S.SendButton>
+                <S.PasteHint>
+                  drag &amp; drop, or <S.PasteText>paste</S.PasteText> from
+                  the clipboard
+                </S.PasteHint>
+              </S.SendButtonWrapper>
+            )}
+          </S.FileSection>
+              </S.PanelBody>
+            </S.Panel>
+
+            <S.Panel aria-label="Transfers">
+              <S.PanelHead><S.PanelTitle>Transfers</S.PanelTitle></S.PanelHead>
+              <S.PanelBody>
+          {transfers.length > 0 && (
+            <S.TransferList>
+              {transfers.map((transfer, index) => {
+                const receiving = transfer.direction === "receive";
+                const percent =
+                  transfer.size > 0
+                    ? Math.min(
+                        100,
+                        (transfer.bytes / transfer.size) * 100,
+                      )
+                    : 0;
+                return (
+                  <S.TransferItem key={transfer.id} $delay={index * 100}>
+                    <S.TransferItemHeader>
+                      <S.FileNameWrapper>
+                        <S.FileIconWrapper $receiving={receiving}>
+                          <FileIcon size={15} />
+                        </S.FileIconWrapper>
+                        <S.FileNameText title={transfer.name}>
+                          {trimFileName(transfer.name, 28)}
+                        </S.FileNameText>
+                        {transfer.compressed && (
+                          <S.ZipBadge>ZIP</S.ZipBadge>
+                        )}
+                      </S.FileNameWrapper>
+                      <S.TransferStatus $receiving={receiving}>
+                        <S.StatusDot $receiving={receiving} />
+                        {receiving ? "Receiving" : "Sending"}
+                      </S.TransferStatus>
+                      <S.CancelButton
+                        onClick={() => cancelTransfer(transfer)}
+                        title="Cancel transfer"
+                        aria-label={`Cancel ${transfer.name}`}
                       >
-                        <S.SendButtonIcon aria-hidden="true">
-                          <Upload size={22} />
-                        </S.SendButtonIcon>
-                        <S.SendButtonText>
-                          {isDragging ? "Drop to send" : "Send Files"}
-                        </S.SendButtonText>
-                        <S.ButtonShine />
-                      </S.SendButton>
-                      <S.PasteHint>
-                        drag &amp; drop, or <S.PasteText>paste</S.PasteText> from
-                        the clipboard
-                      </S.PasteHint>
-                    </S.SendButtonWrapper>
-                  )}
-                </S.FileSection>
-
-                <S.HistorySection aria-label="Recent transfers">
-                  <S.HistoryHeader>
-                    <S.HistoryTitle>
-                      <Sparkles size={15} />
-                      Recent Transfers
-                    </S.HistoryTitle>
-                    <S.HistoryStats>{history.length} total</S.HistoryStats>
-                  </S.HistoryHeader>
-
-                  <S.HistoryContent>
-                    {recentHistory.length === 0 ? (
-                      <S.EmptyHistoryState>
-                        <Text type="secondary">No transfers yet</Text>
-                      </S.EmptyHistoryState>
-                    ) : (
-                      recentHistory.map((file, index) => {
-                        const type =
-                          file.direction === "send" ? "sent" : "received";
-                        return (
-                          <S.InlineHistoryItem
-                            key={file.id}
-                            $delay={index * 80}
-                          >
-                            <S.InlineLeft>
-                              <S.InlineStatusBadge $type={type}>
-                                {file.direction === "send" ? (
-                                  <ArrowUp size={10} />
-                                ) : (
-                                  <ArrowDown size={10} />
-                                )}
-                              </S.InlineStatusBadge>
-                              <S.InlineFileName title={file.name}>
-                                {trimFileName(file.name, 22)}
-                              </S.InlineFileName>
-                            </S.InlineLeft>
-                            <S.InlineRight>
-                              <S.InlineTime>{formatTime(file.at)}</S.InlineTime>
-                              <S.InlineTypeBadge $type={type}>
-                                {file.direction === "send" ? "SENT" : "RECV"}
-                              </S.InlineTypeBadge>
-                            </S.InlineRight>
-                          </S.InlineHistoryItem>
-                        );
-                      })
-                    )}
-                  </S.HistoryContent>
-
-                  {history.length > 3 && (
-                    <S.SeeMoreButton onClick={() => setShowHistoryModal(true)}>
-                      +{history.length - 3} more files
-                    </S.SeeMoreButton>
-                  )}
-                  {history.length > 0 && history.length <= 3 && (
-                    <S.ViewAllButton onClick={() => setShowHistoryModal(true)}>
-                      View All History
-                    </S.ViewAllButton>
-                  )}
-                </S.HistorySection>
-
-                <S.Footer>
-                  <S.UserCountBadge>
-                    <Users size={14} />
-                    <span>
-                      {connectedUsers} {connectedUsers === 1 ? "device" : "devices"}{" "}
-                      on this channel
-                    </span>
-                  </S.UserCountBadge>
-                  <S.FooterLinks>
-                    <span>© {new Date().getFullYear()} ThrowMyFile</span>
-                    <S.FooterLink href="/privacy-policy">Privacy</S.FooterLink>
-                    <S.FooterLink
-                      href="https://github.com/jamg26/throw-files"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Source on GitHub"
+                        <X size={14} />
+                      </S.CancelButton>
+                    </S.TransferItemHeader>
+                    <S.ProgressTrack
+                      role="progressbar"
+                      aria-valuenow={Math.round(percent)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${transfer.name} progress`}
                     >
-                      <Github size={14} />
-                    </S.FooterLink>
-                  </S.FooterLinks>
-                </S.Footer>
-              </CardBody>
-            </S.Card>
-          </S.CardWrapper>
-        </animated.div>
+                      <S.ProgressFill style={{ width: `${percent}%` }} />
+                    </S.ProgressTrack>
+                    <S.ProgressInfo>
+                      <S.ProgressPercent>
+                        {percent.toFixed(1)}%
+                      </S.ProgressPercent>
+                      <S.ProgressSize>
+                        {formatFileSize(transfer.bytes)} /{" "}
+                        {formatFileSize(transfer.size)}
+                      </S.ProgressSize>
+                    </S.ProgressInfo>
+                  </S.TransferItem>
+                );
+              })}
+            </S.TransferList>
+          )}
+
+          {readyFiles.length > 0 && (
+            <S.ReadyList aria-label="Files ready to save">
+              {readyFiles.map((file) => (
+                <S.ReadyItem key={file.id}>
+                  <S.FileNameWrapper>
+                    <S.FileIconWrapper $receiving>
+                      <CheckCircle size={15} />
+                    </S.FileIconWrapper>
+                    <S.FileNameText title={file.name}>
+                      {trimFileName(file.name, 24)}
+                    </S.FileNameText>
+                    {file.compressed && <S.ZipBadge>ZIP</S.ZipBadge>}
+                  </S.FileNameWrapper>
+                  <S.ReadyActions>
+                    <S.ReadySize>{formatFileSize(file.size)}</S.ReadySize>
+                    <Button
+                      variant="success"
+                      size="small"
+                      onClick={() => saveFile(file)}
+                    >
+                      <Download size={14} />
+                      Save
+                    </Button>
+                    <S.CancelButton
+                      onClick={() => dismissReadyFile(file.id)}
+                      title="Discard"
+                      aria-label={`Discard ${file.name}`}
+                    >
+                      <X size={14} />
+                    </S.CancelButton>
+                  </S.ReadyActions>
+                </S.ReadyItem>
+              ))}
+            </S.ReadyList>
+          )}
+                {transfers.length === 0 && readyFiles.length === 0 && (
+                  <S.EmptyHint>No active transfers</S.EmptyHint>
+                )}
+              </S.PanelBody>
+            </S.Panel>
+          </S.Row>
+
+          <S.Row $cols={1}>
+            <S.Panel>
+          <S.HistorySection aria-label="Recent transfers">
+            <S.HistoryHeader>
+              <S.HistoryTitle>
+                <Sparkles size={15} />
+                Recent Transfers
+              </S.HistoryTitle>
+              <S.HistoryStats>{history.length} total</S.HistoryStats>
+            </S.HistoryHeader>
+
+            <S.HistoryContent>
+              {recentHistory.length === 0 ? (
+                <S.EmptyHistoryState>
+                  <Text type="secondary">No transfers yet</Text>
+                </S.EmptyHistoryState>
+              ) : (
+                recentHistory.map((file, index) => {
+                  const type =
+                    file.direction === "send" ? "sent" : "received";
+                  return (
+                    <S.InlineHistoryItem
+                      key={file.id}
+                      $delay={index * 80}
+                    >
+                      <S.InlineLeft>
+                        <S.InlineStatusBadge $type={type}>
+                          {file.direction === "send" ? (
+                            <ArrowUp size={10} />
+                          ) : (
+                            <ArrowDown size={10} />
+                          )}
+                        </S.InlineStatusBadge>
+                        <S.InlineFileName title={file.name}>
+                          {trimFileName(file.name, 22)}
+                        </S.InlineFileName>
+                      </S.InlineLeft>
+                      <S.InlineRight>
+                        <S.InlineTime>{formatTime(file.at)}</S.InlineTime>
+                        <S.InlineTypeBadge $type={type}>
+                          {file.direction === "send" ? "SENT" : "RECV"}
+                        </S.InlineTypeBadge>
+                      </S.InlineRight>
+                    </S.InlineHistoryItem>
+                  );
+                })
+              )}
+            </S.HistoryContent>
+
+            {history.length > 3 && (
+              <S.SeeMoreButton onClick={() => setShowHistoryModal(true)}>
+                +{history.length - 3} more files
+              </S.SeeMoreButton>
+            )}
+            {history.length > 0 && history.length <= 3 && (
+              <S.ViewAllButton onClick={() => setShowHistoryModal(true)}>
+                View All History
+              </S.ViewAllButton>
+            )}
+          </S.HistorySection>
+            </S.Panel>
+          </S.Row>
+        </S.Dashboard>
+
+        <S.Footer>
+          <S.FooterLinks>
+            <span>© {new Date().getFullYear()} ThrowMyFile</span>
+            <S.FooterLink href="/privacy-policy">Privacy</S.FooterLink>
+            <S.FooterLink
+              href="https://github.com/jamg26/throw-files"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Source on GitHub"
+            >
+              <Github size={14} />
+            </S.FooterLink>
+          </S.FooterLinks>
+        </S.Footer>
       </S.MainContainer>
 
       <input

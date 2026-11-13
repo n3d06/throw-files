@@ -52,8 +52,6 @@ const HeaderContainer = styled.header`
   padding: 0 28px;
   height: 56px;
   background: var(--bg-secondary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-subtle);
 `;
 
@@ -68,11 +66,10 @@ const LogoMark = styled.div`
   width: 32px;
   height: 32px;
   background: var(--accent-gradient);
-  border-radius: 10px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
   flex-shrink: 0;
 `;
 
@@ -111,7 +108,7 @@ const navItemStyles = `
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 3px;
   color: var(--text-secondary);
   font-size: 17px;
   transition: all 0.2s ease;

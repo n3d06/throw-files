@@ -223,7 +223,7 @@ const Section = styled.section`
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 13px;
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: 3px;
     background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
   }

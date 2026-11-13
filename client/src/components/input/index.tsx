@@ -14,7 +14,7 @@ const StyledInput = styled.input`
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: 3px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
   padding: 0 14px;
@@ -32,7 +32,6 @@ const StyledInput = styled.input`
 
   &:focus {
     border-color: var(--input-focus);
-    box-shadow: 0 0 0 3px var(--accent-glow);
     background: var(--bg-glass);
   }
 `;

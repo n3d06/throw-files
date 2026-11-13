@@ -97,85 +97,126 @@ export const HomeComponent = styled.div`
 `;
 
 export const MainContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 80px 16px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 72px 16px 24px;
 
-  /* Skip-link target: focused programmatically, so suppress the ring for mouse
-     users but keep it for keyboard navigation. */
   &:focus:not(:focus-visible) {
     outline: none;
   }
+`;
 
-  @media (max-width: 480px) {
-    padding: 48px 12px 16px;
-    align-items: flex-start;
+export const Dashboard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+export const Row = styled.div<{ $cols: number }>`
+  display: grid;
+  grid-template-columns: repeat(${(p) => p.$cols}, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+
+  @media (max-width: 860px) {
+    grid-template-columns: minmax(0, 1fr);
   }
+`;
+
+export const Panel = styled.section`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-card);
+`;
+
+export const PanelHead = styled.div`
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+`;
+
+export const PanelBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  padding: 16px;
+`;
+
+export const StatusLine = styled.div<{ $state: string }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${(p) =>
+    p.$state === "open"
+      ? "var(--success)"
+      : p.$state === "failed"
+        ? "var(--danger)"
+        : "var(--warning)"};
+
+  span {
+    flex: 1;
+  }
+`;
+
+export const EmptyHint = styled.p`
+  margin: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+`;
+export const PanelTitle = styled.h2`
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0;
+`;
+
+export const DeviceCount = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  svg {
+    color: var(--accent-emerald);
+  }
+`;
+
+export const Note = styled.p`
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--text-muted);
 `;
 
 export const CardWrapper = styled.div`
   width: 100%;
-  max-width: 520px;
   position: relative;
 
-  @media (max-width: 480px) {
-    max-width: 100%;
-  }
-
-  @media (min-width: 1024px) {
-    max-width: 560px;
-  }
 `;
 
 export const Card = styled.div`
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 28px;
-  box-shadow: var(--shadow-xl), var(--shadow-glow);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  background: var(--bg-primary);
   position: relative;
+  width: 100%;
 
-  &:hover {
-    border-color: var(--border-accent);
-    transform: translateY(-6px);
-    box-shadow:
-      var(--shadow-xl),
-      0 0 120px var(--accent-glow);
-  }
-`;
+  /* Full width: one column on phones, controls left and history right on wide screens. */
+  @media (min-width: 900px) {
+    display: grid;
+    grid-template-columns: minmax(360px, 480px) 1fr;
+    align-items: start;
+    column-gap: 24px;
+    padding: 0 24px;
 
-export const CardBorderGlow = styled.div`
-  position: absolute;
-  inset: -1px;
-  border-radius: 28px;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-tertiary),
-    var(--accent-sky)
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-  pointer-events: none;
-
-  ${Card}:hover & {
-    opacity: 0.6;
-    animation: ${borderGlow} 2s ease-in-out infinite;
+    > :nth-child(2) { display: contents; }
+    > :nth-child(2) > * { grid-column: 1; }
+    > :first-child { grid-column: 1 / -1; }
+    > :nth-child(2) > [aria-label="Recent transfers"] { grid-column: 2; grid-row: 2 / span 20; }
   }
 `;
 
@@ -200,57 +241,17 @@ export const LogoIcon = styled.div`
   width: 64px;
   height: 64px;
   background: var(--accent-gradient);
-  border-radius: 20px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   z-index: 1;
-  animation: ${float} 4s ease-in-out infinite;
-  box-shadow:
-    0 0 30px var(--accent-glow-strong),
-    0 12px 40px rgba(129, 140, 248, 0.25);
 `;
 
 export const UploadIconWrapper = styled.div`
   color: white;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
-`;
-
-export const LogoRing = styled.div`
-  position: absolute;
-  width: 80px;
-  height: 80px;
-  border: 2px solid var(--accent-primary);
-  border-radius: 24px;
-  top: -8px;
-  left: -8px;
-  opacity: 0.3;
-  animation: ${glowPulse} 3s ease-in-out infinite;
-`;
-
-export const LogoRingDelayed = styled(LogoRing)`
-  width: 100px;
-  height: 100px;
-  border-radius: 30px;
-  top: -16px;
-  left: -16px;
-  animation-delay: 0.5s;
-  opacity: 0.15;
-`;
-
-export const LogoGlowBlob = styled.div`
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  background: var(--accent-gradient);
-  border-radius: 50%;
-  filter: blur(35px);
-  opacity: 0.25;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  animation: ${glowPulse} 4s ease-in-out infinite;
 `;
 
 export const Title = styled.h1`
@@ -259,14 +260,6 @@ export const Title = styled.h1`
   letter-spacing: -1.5px;
   color: var(--text-primary);
   margin: 0 0 12px;
-  background: linear-gradient(
-    135deg,
-    var(--text-primary) 0%,
-    var(--accent-secondary) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 
   @media (max-width: 360px) {
     font-size: 24px;
@@ -305,11 +298,10 @@ export const Badge = styled.div`
   padding: 6px 14px;
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
-  border-radius: 20px;
+  border-radius: 3px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
-  animation: ${fadeInUp} 0.5s ease both;
   animation-delay: 0.3s;
 
   svg {
@@ -342,31 +334,22 @@ export const ChannelBox = styled.div<{ $focused?: boolean }>`
   background: var(--bg-tertiary);
   border: 1px solid
     ${(p) => (p.$focused ? "var(--accent-primary)" : "var(--border-subtle)")};
-  border-radius: 18px;
-  padding: 22px 26px;
+  border-radius: 3px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 16px;
   min-width: 0;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: ${(p) =>
-    p.$focused
-      ? "0 0 0 4px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.2)"
-      : "none"};
 
   &:hover {
     border-color: var(--border-accent);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   }
 
   [data-theme="light"] & {
     background: var(--bg-secondary);
     border-color: ${(p) =>
       p.$focused ? "var(--accent-primary)" : "var(--border-subtle)"};
-    box-shadow: ${(p) =>
-      p.$focused
-        ? "0 0 0 4px var(--accent-glow), 0 4px 20px var(--accent-glow)"
-        : "var(--shadow-sm)"};
   }
 
   @media (max-width: 480px) {
@@ -379,15 +362,14 @@ export const ChannelBox = styled.div<{ $focused?: boolean }>`
 
 export const ChannelCode = styled.span`
   font-family: "Inter", monospace;
-  font-size: clamp(24px, 7vw, 38px);
+  font-size: 22px;
   font-weight: 700;
-  letter-spacing: clamp(2px, 1.2vw, 6px);
+  letter-spacing: 3px;
   color: var(--accent-primary);
   flex: 1;
   min-width: 0;
   word-break: break-word;
   text-align: left;
-  text-shadow: 0 0 40px var(--accent-glow);
 
   @media (max-width: 360px) {
     font-size: 22px;
@@ -408,9 +390,9 @@ export const ActionButtons = styled.div`
 export const IconButton = styled.button`
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  min-width: 54px;
-  height: 54px;
+  border-radius: 3px;
+  min-width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -422,8 +404,6 @@ export const IconButton = styled.button`
     background: var(--accent-glow);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
-    transform: scale(1.05);
-    box-shadow: 0 4px 20px var(--accent-glow);
   }
 
   &:active {
@@ -443,7 +423,7 @@ export const JoinSection = styled.div`
   display: flex;
   gap: 12px;
   align-items: stretch;
-  margin-bottom: 28px;
+  margin-bottom: 0;
 
   @media (max-width: 600px) {
     flex-wrap: wrap;
@@ -463,10 +443,10 @@ export const JoinSection = styled.div`
 `;
 
 export const StyledInput = styled(Input)`
-  height: 54px;
-  font-size: 16px;
+  height: 40px;
+  font-size: 15px;
   letter-spacing: 3px;
-  border-radius: 16px;
+  border-radius: 3px;
   text-transform: uppercase;
   font-weight: 600;
 
@@ -487,15 +467,13 @@ export const TransferList = styled.div`
 export const TransferItem = styled.div<{ $delay: number }>`
   background: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
-  border-radius: 18px;
+  border-radius: 3px;
   padding: 20px 22px;
-  animation: ${fadeInUp} 0.5s ease ${(p) => p.$delay}ms both;
   transition: all 0.3s ease;
 
   &:hover {
     border-color: var(--accent-primary);
     transform: translateX(6px);
-    box-shadow: 0 8px 32px rgba(129, 140, 248, 0.15);
   }
 
   [data-theme="light"] & {
@@ -540,7 +518,7 @@ export const ZipBadge = styled.span`
   color: var(--accent-tertiary);
   background: rgba(192, 132, 252, 0.15);
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: 3px;
   text-transform: uppercase;
   flex-shrink: 0;
 `;
@@ -563,9 +541,6 @@ export const StatusDot = styled.span<{ $receiving?: boolean }>`
   border-radius: 50%;
   background: ${(p) =>
     p.$receiving ? "var(--accent-sky)" : "var(--accent-emerald)"};
-  animation: ${pulse} 1.5s ease-in-out infinite;
-  box-shadow: 0 0 10px
-    ${(p) => (p.$receiving ? "var(--accent-sky)" : "var(--accent-emerald)")};
 `;
 
 export const ProgressTrack = styled.div`
@@ -588,21 +563,6 @@ export const ProgressFill = styled.div`
   overflow: hidden;
 `;
 
-export const ProgressGlow = styled.div`
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.5),
-    transparent
-  );
-  animation: ${shimmer} 1.5s infinite;
-`;
-
 export const ProgressInfo = styled.div`
   display: flex;
   justify-content: space-between;
@@ -622,21 +582,22 @@ export const FileSection = styled.div<{ $dragging?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 0;
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-  border-radius: 18px;
+  flex: 1;
+  justify-content: center;
+  min-height: 200px;
+  padding: 32px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 3px;
   transition:
     background 0.2s ease,
     outline-color 0.2s ease;
-  outline: 2px dashed transparent;
-  outline-offset: -8px;
 
   ${(p) =>
     p.$dragging &&
     css`
-      background: var(--accent-glow);
-      outline-color: var(--accent-primary);
+      background: var(--bg-secondary);
+      border-color: var(--accent-primary);
+      border-style: solid;
     `}
 `;
 
@@ -646,7 +607,7 @@ export const ConnectionBanner = styled.div<{ $state: string }>`
   gap: 10px;
   margin-bottom: 18px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: 3px;
   font-size: 13px;
   font-weight: 500;
   background: ${(p) =>
@@ -668,7 +629,7 @@ export const ConnectionBanner = styled.div<{ $state: string }>`
 export const BannerAction = styled.button`
   background: transparent;
   border: 1px solid currentColor;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 4px 12px;
   font-family: "Inter", sans-serif;
   font-size: 12px;
@@ -691,7 +652,7 @@ export const BannerAction = styled.button`
 export const CancelButton = styled.button`
   background: transparent;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 3px;
   width: 28px;
   height: 28px;
   display: flex;
@@ -728,8 +689,7 @@ export const ReadyItem = styled.div`
   padding: 14px 16px;
   background: var(--success-glow);
   border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 16px;
-  animation: ${fadeInUp} 0.4s ease both;
+  border-radius: 3px;
 
   @media (max-width: 480px) {
     flex-direction: column;
@@ -779,17 +739,14 @@ export const SendButton = styled.button`
   background-size: 200% 200%;
   color: white;
   border: none;
-  border-radius: 24px;
-  padding: 22px 72px;
-  font-size: 18px;
-  font-weight: 700;
+  border-radius: 3px;
+  padding: 10px 28px;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  box-shadow:
-    0 8px 40px rgba(129, 140, 248, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  gap: 10px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: "Inter", sans-serif;
   letter-spacing: -0.02em;
@@ -797,26 +754,14 @@ export const SendButton = styled.button`
   overflow: hidden;
 
   &:hover {
-    transform: translateY(-6px) scale(1.03);
-    box-shadow:
-      0 16px 60px rgba(129, 140, 248, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-    animation: ${gradientShift} 2s ease infinite;
   }
 
   &:active {
-    transform: translateY(-3px) scale(0.98);
   }
 
   [data-theme="light"] & {
-    box-shadow:
-      0 8px 32px rgba(99, 102, 241, 0.3),
-      0 0 0 1px rgba(255, 255, 255, 0.2) inset;
 
     &:hover {
-      box-shadow:
-        0 16px 48px rgba(99, 102, 241, 0.4),
-        0 0 0 1px rgba(255, 255, 255, 0.3) inset;
     }
   }
 
@@ -824,7 +769,6 @@ export const SendButton = styled.button`
     opacity: 0.45;
     cursor: not-allowed;
     transform: none;
-    box-shadow: none;
   }
 
   &:focus-visible {
@@ -837,7 +781,7 @@ export const SendButton = styled.button`
     padding: 16px 24px;
     font-size: 16px;
     gap: 10px;
-    border-radius: 18px;
+    border-radius: 3px;
   }
 `;
 
@@ -846,7 +790,6 @@ export const SendButtonIcon = styled.div`
   transition: transform 0.3s ease;
 
   ${SendButton}:hover & {
-    transform: translateY(-3px) scale(1.1);
   }
 `;
 
@@ -858,12 +801,7 @@ export const ButtonShine = styled.div`
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
+  background: var(--accent-primary);
   transition: left 0.7s ease;
 
   ${SendButton}:hover & {
@@ -895,11 +833,11 @@ export const PasteText = styled.span`
 `;
 
 export const HistorySection = styled.div`
-  margin-top: 28px;
-  padding: 22px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 20px;
+  margin: 0;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
   transition: all 0.3s ease;
 
   &:hover {
@@ -943,7 +881,7 @@ export const HistoryStats = styled.span`
   color: var(--text-muted);
   background: var(--bg-glass);
   padding: 5px 14px;
-  border-radius: 20px;
+  border-radius: 3px;
 `;
 
 export const HistoryContent = styled.div`
@@ -963,15 +901,13 @@ export const InlineHistoryItem = styled.div<{ $delay: number }>`
   padding: 16px 18px;
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: 3px;
   margin-bottom: 10px;
-  animation: ${fadeInUp} 0.4s ease ${(p) => p.$delay}ms both;
   transition: all 0.3s ease;
 
   &:hover {
     border-color: var(--accent-primary);
     transform: translateX(8px);
-    box-shadow: 0 4px 24px var(--accent-glow);
   }
 
   @media (max-width: 400px) {
@@ -992,7 +928,7 @@ export const InlineLeft = styled.div`
 export const InlineStatusBadge = styled.span<{ $type: "sent" | "received" }>`
   width: 30px;
   height: 30px;
-  border-radius: 10px;
+  border-radius: 3px;
   background: ${(p) =>
     p.$type === "sent" ? "var(--success-glow)" : "var(--accent-glow)"};
   color: ${(p) =>
@@ -1037,9 +973,9 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
 `;
 
 export const SeeMoreButton = styled.button`
-  background: linear-gradient(135deg, var(--accent-glow), transparent);
+  background: var(--accent-primary);
   border: 1px dashed var(--border-medium);
-  border-radius: 14px;
+  border-radius: 3px;
   padding: 14px;
   width: 100%;
   font-size: 14px;
@@ -1048,20 +984,18 @@ export const SeeMoreButton = styled.button`
   cursor: pointer;
   transition: all 0.25s ease;
   font-family: "Inter", sans-serif;
-  animation: ${fadeInUp} 0.4s ease;
 
   &:hover {
     background: var(--accent-primary);
     color: white;
     border-style: solid;
-    transform: scale(1.02);
   }
 `;
 
 export const ViewAllButton = styled.button`
   background: transparent;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: 3px;
   padding: 14px;
   width: 100%;
   font-size: 14px;
@@ -1080,7 +1014,7 @@ export const ViewAllButton = styled.button`
 `;
 
 export const Footer = styled.div`
-  margin-top: 32px;
+  margin-top: 40px;
   text-align: center;
 `;
 
@@ -1092,7 +1026,7 @@ export const UserCountBadge = styled.div`
   color: var(--text-muted);
   background: var(--bg-glass);
   padding: 12px 24px;
-  border-radius: 28px;
+  border-radius: 3px;
   margin-bottom: 18px;
   border: 1px solid var(--border-subtle);
 
@@ -1120,7 +1054,6 @@ export const FooterLinks = styled.div`
 
     &:hover {
       color: var(--accent-primary);
-      transform: scale(1.1);
     }
   }
 
@@ -1154,31 +1087,6 @@ export const FooterLink = styled.a`
 // This used to be an empty styled.div while the real rules lived in App.less
 // under a `.particles` class the component never applied. The particles were
 // therefore unclipped (they travel +/-100vh) and visible in light mode.
-export const ParticlesContainer = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-  contain: strict;
-
-  [data-theme="light"] & {
-    display: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    display: none;
-  }
-`;
-
-export const Particle = styled.div`
-  position: absolute;
-  top: 0;
-  border-radius: 50%;
-  pointer-events: none;
-  animation: particleFloat linear infinite;
-`;
-
 // Modal Components
 export const ModalTitle = styled.div`
   display: flex;
@@ -1192,7 +1100,7 @@ export const HistoryWrapper = styled.div`
   width: 36px;
   height: 36px;
   background: var(--accent-glow);
-  border-radius: 10px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1205,7 +1113,7 @@ export const CountBadge = styled.span`
   font-size: 12px;
   font-weight: 700;
   padding: 5px 14px;
-  border-radius: 20px;
+  border-radius: 3px;
 `;
 
 export const ModalFooter = styled.div`
@@ -1219,7 +1127,7 @@ export const TabBar = styled.div`
   gap: 8px;
   padding: 6px;
   background: var(--bg-tertiary);
-  border-radius: 16px;
+  border-radius: 3px;
   margin-bottom: 24px;
 
   [data-theme="light"] & {
@@ -1236,7 +1144,7 @@ export const TabButton = styled.button<{ $active: boolean }>`
   cursor: pointer;
   font-size: 14px;
   font-weight: ${(p) => (p.$active ? "700" : "500")};
-  border-radius: 14px;
+  border-radius: 3px;
   transition: all 0.25s ease;
   display: flex;
   align-items: center;
@@ -1254,7 +1162,7 @@ export const TabCount = styled.span<{ $active: boolean }>`
   background: ${(p) =>
     p.$active ? "rgba(255,255,255,0.2)" : "var(--bg-glass)"};
   padding: 4px 12px;
-  border-radius: 14px;
+  border-radius: 3px;
   font-size: 12px;
   font-weight: 700;
 `;
@@ -1269,7 +1177,7 @@ export const EmptyIconWrapper = styled.div`
   height: 80px;
   margin: 0 auto 24px;
   background: var(--bg-tertiary);
-  border-radius: 24px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1312,7 +1220,7 @@ export const HistoryItem = styled.div<{ $visible: boolean; $delay: number }>`
     background: var(--bg-glass);
     margin: 0 -16px;
     padding: 18px 16px;
-    border-radius: 14px;
+    border-radius: 3px;
   }
 `;
 
@@ -1326,7 +1234,7 @@ export const HistoryItemLeft = styled.div`
 export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
   width: 32px;
   height: 32px;
-  border-radius: 12px;
+  border-radius: 3px;
   background: ${(p) =>
     p.$type === "sent" ? "var(--success-glow)" : "var(--accent-glow)"};
   color: ${(p) =>
@@ -1400,8 +1308,7 @@ export const ToastContainer = styled.div<{ $visible: boolean; $leaving: boolean 
   padding: 18px 20px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: 18px;
-  box-shadow: var(--shadow-lg);
+  border-radius: 3px;
   min-width: min(340px, 100%);
   max-width: 440px;
   transform: translateX(${(p) => (p.$leaving ? "120%" : "0")});
@@ -1422,7 +1329,7 @@ export const ToastContainer = styled.div<{ $visible: boolean; $leaving: boolean 
 export const ToastIconWrapper = styled.div`
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1452,7 +1359,7 @@ export const ToastClose = styled.button`
   color: var(--text-muted);
   cursor: pointer;
   padding: 8px;
-  border-radius: 10px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;

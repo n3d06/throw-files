@@ -91,21 +91,21 @@ const sizeStyles: Record<Size, ReturnType<typeof css>> = {
     padding: 8px 14px;
     font-size: 12px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: 3px;
     font-weight: 600;
   `,
   middle: css`
     padding: 10px 18px;
     font-size: 14px;
     height: 42px;
-    border-radius: 12px;
+    border-radius: 3px;
     font-weight: 600;
   `,
   large: css`
     padding: 14px 28px;
     font-size: 15px;
     height: 52px;
-    border-radius: 14px;
+    border-radius: 3px;
     font-weight: 700;
   `,
 };
@@ -116,7 +116,6 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     background-size: 200% 200%;
     color: #fff;
     border: none;
-    box-shadow: 0 4px 20px rgba(237, 75, 158, 0.4);
     position: relative;
     overflow: hidden;
 
@@ -127,12 +126,7 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
       left: -100%;
       width: 100%;
       height: 100%;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.25),
-        transparent
-      );
+      background: var(--accent-primary);
       transition: left 0.5s ease;
     }
 
@@ -141,13 +135,10 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     }
 
     &:hover:not(:disabled) {
-      box-shadow: 0 8px 32px rgba(237, 75, 158, 0.5);
-      transform: translateY(-2px) scale(1.02);
     }
 
     &:active:not(:disabled) {
       transform: translateY(0) scale(0.98);
-      box-shadow: 0 4px 16px rgba(237, 75, 158, 0.35);
     }
   `,
   secondary: css`
@@ -158,8 +149,6 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     &:hover:not(:disabled) {
       background: var(--bg-glass-hover);
       border-color: var(--accent-primary);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
 
     &:active:not(:disabled) {
@@ -176,14 +165,11 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     }
   `,
   danger: css`
-    background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+    background: var(--accent-primary);
     color: #fff;
     border: none;
-    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
 
     &:hover:not(:disabled) {
-      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.45);
-      transform: translateY(-2px);
       filter: brightness(1.08);
     }
 
@@ -215,14 +201,11 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     }
   `,
   success: css`
-    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+    background: var(--accent-primary);
     color: #fff;
     border: none;
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
 
     &:hover:not(:disabled) {
-      box-shadow: 0 8px 32px rgba(16, 185, 129, 0.45);
-      transform: translateY(-2px);
     }
 
     &:active:not(:disabled) {

@@ -41,8 +41,7 @@ export const CardHeader = ({
 const GlassCard = styled.div`
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  border-radius: 3px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   position: relative;
@@ -54,21 +53,13 @@ const GlassCard = styled.div`
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.1),
-      transparent
-    );
+    background: var(--accent-primary);
     opacity: 0;
     transition: opacity 0.3s ease;
   }
 
   &:hover {
     border-color: var(--border-medium);
-    box-shadow:
-      var(--shadow-lg),
-      0 0 60px rgba(99, 102, 241, 0.08);
 
     &::before {
       opacity: 1;

@@ -1,10 +1,7 @@
-/* No remote font import.
-   A privacy policy that promises "we do not track your IP address" cannot ship
-   a Google Fonts request that hands the user's IP and User-Agent to Google on
-   every page load. Inter is used when the visitor already has it installed;
-   otherwise we fall back to the platform UI font.
-   Follow-up: self-host Inter as woff2 under /public to restore exact
-   typography without a third-party request. */
+/* Flat, minimal palette. One accent colour, no gradients, no shadows, no glass.
+   The variable names are kept so existing components keep working; the
+   gradient/glow/shadow variables are now solid colours or `none`.
+   No remote font import: system UI font only, so no third-party request. */
 
 *,
 *::before,
@@ -15,152 +12,102 @@
 }
 
 :root {
-  --bg-primary: #030014;
-  --bg-secondary: #0a0a1a;
-  --bg-tertiary: #12122a;
-  --bg-elevated: rgba(18, 18, 42, 0.9);
-  --bg-glass: rgba(255, 255, 255, 0.03);
-  --bg-glass-hover: rgba(255, 255, 255, 0.06);
-  --bg-card: rgba(10, 10, 26, 0.85);
-  --bg-card-hover: rgba(18, 18, 42, 0.9);
+  --bg-primary: #1b1b1b;
+  --bg-secondary: #222222;
+  --bg-tertiary: #2a2a2a;
+  --bg-elevated: #222222;
+  --bg-glass: #262626;
+  --bg-glass-hover: #2e2e2e;
+  --bg-card: #222222;
+  --bg-card-hover: #222222;
 
-  --accent-primary: #ed4b9e;
-  --accent-secondary: #f472b6;
-  --accent-tertiary: #fb7185;
-  --accent-deep: #db2777;
-  --accent-emerald: #34d399;
-  --accent-coral: #fb7185;
-  --accent-sky: #38bdf8;
-  --accent-amber: #fbbf24;
+  --accent-primary: #4c8bf5;
+  --accent-secondary: #4c8bf5;
+  --accent-tertiary: #4c8bf5;
+  --accent-deep: #3a75db;
+  --accent-emerald: #4caf7a;
+  --accent-coral: #e5655f;
+  --accent-sky: #4c8bf5;
+  --accent-amber: #e0a030;
 
-  --accent-gradient: linear-gradient(
-    135deg,
-    #ed4b9e 0%,
-    #f472b6 50%,
-    #fb7185 100%
-  );
-  --accent-gradient-2: linear-gradient(
-    135deg,
-    #db2777 0%,
-    #ed4b9e 50%,
-    #f472b6 100%
-  );
-  --accent-gradient-3: linear-gradient(
-    135deg,
-    #ed4b9e 0%,
-    #f472b6 50%,
-    #f9a8d4 100%
-  );
-  --accent-glow: rgba(237, 75, 158, 0.3);
-  --accent-glow-strong: rgba(237, 75, 158, 0.5);
+  --accent-gradient: #4c8bf5;
+  --accent-gradient-2: #4c8bf5;
+  --accent-gradient-3: #4c8bf5;
 
-  --success: #34d399;
-  --success-glow: rgba(52, 211, 153, 0.2);
-  --danger: #f87171;
-  --warning: #fbbf24;
+  --accent-glow: transparent;
+  --accent-glow-strong: transparent;
 
-  --text-primary: #ffffff;
-  --text-secondary: #c4c4d4;
-  /* Lightened to clear WCAG AA 4.5:1 against --bg-secondary and --bg-tertiary.
-     The old --text-muted (#5c5c72) measured 3.0:1 and is used for real copy
-     such as the paste hint and the channel label. */
-  --text-tertiary: #a5a5be;
-  --text-muted: #8b8ba6;
+  --success: #4caf7a;
+  --success-glow: transparent;
+  --danger: #e5655f;
+  --warning: #e0a030;
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-medium: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-accent: rgba(237, 75, 158, 0.3);
+  --text-primary: #e8e8e8;
+  --text-secondary: #c2c2c2;
+  --text-tertiary: #a0a0a0;
+  --text-muted: #8c8c8c;
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 16px 64px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 32px 96px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 100px rgba(237, 75, 158, 0.15);
-  --shadow-glow-accent: 0 0 60px rgba(237, 75, 158, 0.2);
+  --border-subtle: #333333;
+  --border-medium: #3d3d3d;
+  --border-strong: #505050;
+  --border-accent: #4c8bf5;
 
-  --input-bg: rgba(255, 255, 255, 0.04);
-  --input-border: rgba(255, 255, 255, 0.08);
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-glow: none;
+  --shadow-glow-accent: none;
+
+  --input-bg: #1b1b1b;
+  --input-border: #3d3d3d;
   --input-focus: var(--accent-primary);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-2xl: 32px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
 }
 
 [data-theme="light"] {
   --bg-primary: #ffffff;
-  --bg-secondary: #fafafa;
-  --bg-tertiary: #f3f4f6;
-  --bg-elevated: rgba(255, 255, 255, 0.98);
-  --bg-glass: rgba(0, 0, 0, 0.02);
-  --bg-glass-hover: rgba(0, 0, 0, 0.04);
+  --bg-secondary: #f6f6f6;
+  --bg-tertiary: #eeeeee;
+  --bg-elevated: #ffffff;
+  --bg-glass: #f6f6f6;
+  --bg-glass-hover: #eeeeee;
   --bg-card: #ffffff;
   --bg-card-hover: #ffffff;
 
-  --accent-primary: #ed4b9e;
-  --accent-secondary: #db2777;
-  --accent-tertiary: #be185d;
-  --accent-deep: #9d174d;
-  --accent-emerald: #059669;
-  --accent-coral: #f43f5e;
-  --accent-sky: #0284c7;
-  --accent-amber: #d97706;
+  --accent-primary: #1f63d6;
+  --accent-secondary: #1f63d6;
+  --accent-tertiary: #1f63d6;
+  --accent-deep: #1850b0;
+  --accent-emerald: #1e8a57;
+  --accent-coral: #c9423c;
+  --accent-sky: #1f63d6;
+  --accent-amber: #b87908;
 
-  --accent-gradient: linear-gradient(
-    135deg,
-    #ed4b9e 0%,
-    #f472b6 50%,
-    #fb7185 100%
-  );
-  --accent-gradient-2: linear-gradient(
-    135deg,
-    #db2777 0%,
-    #ed4b9e 50%,
-    #f472b6 100%
-  );
-  --accent-gradient-3: linear-gradient(
-    135deg,
-    #ec4899 0%,
-    #ed4b9e 50%,
-    #f472b6 100%
-  );
-  --accent-glow: rgba(237, 75, 158, 0.12);
-  --accent-glow-strong: rgba(237, 75, 158, 0.25);
+  --accent-gradient: #1f63d6;
+  --accent-gradient-2: #1f63d6;
+  --accent-gradient-3: #1f63d6;
 
-  --success: #059669;
-  --success-glow: rgba(5, 150, 105, 0.1);
-  --danger: #dc2626;
-  --warning: #d97706;
+  --success: #1e8a57;
+  --danger: #c9423c;
+  --warning: #b87908;
 
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  /* Darkened to clear WCAG AA 4.5:1 on #ffffff, #fafafa and #f3f4f6.
-     The old --text-muted (#9ca3af) measured only 2.5:1 on white. */
-  --text-tertiary: #656b7a;
-  --text-muted: #565b68;
+  --text-primary: #1a1a1a;
+  --text-secondary: #444444;
+  --text-tertiary: #5f5f5f;
+  --text-muted: #6b6b6b;
 
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-medium: rgba(0, 0, 0, 0.1);
-  --border-strong: rgba(0, 0, 0, 0.15);
-  --border-accent: rgba(237, 75, 158, 0.3);
+  --border-subtle: #e2e2e2;
+  --border-medium: #d0d0d0;
+  --border-strong: #b5b5b5;
+  --border-accent: #1f63d6;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08), 0 4px 6px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 8px 10px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 60px rgba(237, 75, 158, 0.08);
-  --shadow-glow-accent: 0 0 40px rgba(237, 75, 158, 0.1);
-
-  --input-bg: rgba(0, 0, 0, 0.03);
-  --input-border: rgba(0, 0, 0, 0.08);
-  --input-focus: var(--accent-primary);
-}
-
-html {
-  scroll-behavior: smooth;
+  --input-bg: #ffffff;
+  --input-border: #c8c8c8;
 }
 
 html,
@@ -170,10 +117,8 @@ body {
 
 body {
   font-family:
-    "Inter",
     system-ui,
     -apple-system,
-    BlinkMacSystemFont,
     "Segoe UI",
     Roboto,
     "Helvetica Neue",
@@ -183,190 +128,26 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  position: relative;
 }
 
-/* Animated Mesh Background - Dark Mode */
-.mesh-gradient {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
+/* Keyboard focus must stay visible now that shadows are gone. */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
-.mesh-gradient::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background:
-    radial-gradient(
-      ellipse 600px 400px at 20% 10%,
-      rgba(237, 75, 158, 0.15) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 500px 500px at 80% 20%,
-      rgba(244, 114, 182, 0.12) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 400px 400px at 40% 60%,
-      rgba(251, 113, 133, 0.1) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 500px 300px at 90% 80%,
-      rgba(248, 113, 113, 0.08) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 300px 400px at 10% 90%,
-      rgba(249, 168, 212, 0.06) 0%,
-      transparent 50%
-    );
-  animation: meshFloat 30s ease-in-out infinite;
-}
-
-.mesh-gradient::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background:
-    radial-gradient(
-      ellipse 400px 400px at 60% 30%,
-      rgba(219, 39, 119, 0.1) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 300px 300px at 30% 70%,
-      rgba(237, 75, 158, 0.05) 0%,
-      transparent 50%
-    );
-  animation: meshFloat 20s ease-in-out infinite reverse;
-  opacity: 0.7;
-}
-
-/* Light mode - subtle elegant gradient */
-[data-theme="light"] .mesh-gradient::before {
-  background: radial-gradient(
-    ellipse 100% 50% at 50% -10%,
-    rgba(237, 75, 158, 0.04) 0%,
-    transparent 50%
-  );
-  animation: meshFloatLight 40s ease-in-out infinite;
-}
-
-[data-theme="light"] .mesh-gradient::after {
-  background: radial-gradient(
-    ellipse 60% 40% at 80% 100%,
-    rgba(244, 114, 182, 0.03) 0%,
-    transparent 50%
-  );
-  animation: meshFloatLight 30s ease-in-out infinite reverse;
-  opacity: 0.5;
-}
-
-@keyframes meshFloat {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  25% {
-    transform: translate(2%, -2%) rotate(0.5deg);
-  }
-  50% {
-    transform: translate(-1%, 2%) rotate(-0.5deg);
-  }
-  75% {
-    transform: translate(1%, 1%) rotate(0.3deg);
-  }
-}
-
-@keyframes meshFloatLight {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(1%, -1%);
-  }
-}
-
-/* Floating particles live entirely in pages/home/styles.ts — container styles,
-   particle styles and the particleFloat keyframes. The `.particles` /
-   `.particle` rules that used to sit here matched nothing once the component
-   moved to styled-components, which is why the particles escaped their
-   container and showed up in light mode. */
-
-/* Noise Texture Overlay */
-.noise {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.02;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-}
-
-/* Scrollbar - thin but genuinely visible.
-   These rules previously set width/height to 0 and scrollbar-width:none, which
-   removed the scroll affordance from every scrollable region in the app
-   (the history list and the modal body included). */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 6px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-  background-clip: content-box;
-}
-
-/* Selection */
 ::selection {
   background: var(--accent-primary);
-  color: white;
+  color: #ffffff;
 }
 
-/* Respect the OS "reduce motion" setting.
-   The app runs ~20 keyframe animations, seven of them infinite, plus smooth
-   scrolling. None of it was previously gated. WCAG 2.2.2 / 2.3.3. */
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
   *,
   *::before,
   *::after {

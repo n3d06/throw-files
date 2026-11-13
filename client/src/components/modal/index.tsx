@@ -133,8 +133,6 @@ const Overlay = styled.div`
   justify-content: center;
   padding: 20px;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 
   @supports not (backdrop-filter: blur(8px)) {
     background: rgba(0, 0, 0, 0.8);
@@ -146,10 +144,7 @@ const Overlay = styled.div`
 const Box = styled.div`
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  box-shadow:
-    var(--shadow-lg),
-    0 0 80px rgba(99, 102, 241, 0.05);
+  border-radius: 3px;
   overflow: hidden;
   animation: ${scaleIn} 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
@@ -185,7 +180,7 @@ const CloseBtn = styled.button`
   font-size: 14px;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;

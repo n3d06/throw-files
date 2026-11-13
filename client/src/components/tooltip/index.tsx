@@ -44,7 +44,7 @@ const Tip = styled.span`
   font-size: 12px;
   line-height: 1.5;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 3px;
   white-space: pre-wrap;
   max-width: 260px;
   text-align: center;
@@ -56,7 +56,6 @@ const Tip = styled.span`
     opacity 0.15s ease,
     transform 0.15s ease,
     visibility 0.15s ease;
-  box-shadow: var(--shadow-lg);
 
   &::after {
     content: "";
