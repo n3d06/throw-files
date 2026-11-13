@@ -27,7 +27,6 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  Sparkles,
   WifiOff,
   Wifi,
 } from "lucide-react";
@@ -35,7 +34,7 @@ import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
 import { Tooltip } from "../../components/tooltip";
 import { socket, type ConnectionState } from "../../utils/throw-socket";
-import { Button, Text } from "../../components";
+import { Button } from "../../components";
 import ThrowFileUpload, {
   UploadError,
   type SubmitFile,
@@ -1301,65 +1300,52 @@ export const Home = memo(() => {
           </S.Row>
 
           <S.Row $cols={1}>
-            <S.Panel>
-          <S.HistorySection aria-label="Recent transfers">
-            <S.HistoryHeader>
-              <S.HistoryTitle>
-                <Sparkles size={15} />
-                Recent Transfers
-              </S.HistoryTitle>
-              <S.HistoryStats>{history.length} total</S.HistoryStats>
-            </S.HistoryHeader>
-
-            <S.HistoryContent>
-              {recentHistory.length === 0 ? (
-                <S.EmptyHistoryState>
-                  <Text type="secondary">No transfers yet</Text>
-                </S.EmptyHistoryState>
-              ) : (
-                recentHistory.map((file, index) => {
-                  const type =
-                    file.direction === "send" ? "sent" : "received";
-                  return (
-                    <S.InlineHistoryItem
-                      key={file.id}
-                      $delay={index * 80}
-                    >
-                      <S.InlineLeft>
-                        <S.InlineStatusBadge $type={type}>
-                          {file.direction === "send" ? (
-                            <ArrowUp size={10} />
-                          ) : (
-                            <ArrowDown size={10} />
-                          )}
-                        </S.InlineStatusBadge>
-                        <S.InlineFileName title={file.name}>
-                          {trimFileName(file.name, 22)}
-                        </S.InlineFileName>
-                      </S.InlineLeft>
-                      <S.InlineRight>
-                        <S.InlineTime>{formatTime(file.at)}</S.InlineTime>
-                        <S.InlineTypeBadge $type={type}>
-                          {file.direction === "send" ? "SENT" : "RECV"}
-                        </S.InlineTypeBadge>
-                      </S.InlineRight>
-                    </S.InlineHistoryItem>
-                  );
-                })
-              )}
-            </S.HistoryContent>
-
-            {history.length > 3 && (
-              <S.SeeMoreButton onClick={() => setShowHistoryModal(true)}>
-                +{history.length - 3} more files
-              </S.SeeMoreButton>
-            )}
-            {history.length > 0 && history.length <= 3 && (
-              <S.ViewAllButton onClick={() => setShowHistoryModal(true)}>
-                View All History
-              </S.ViewAllButton>
-            )}
-          </S.HistorySection>
+            <S.Panel aria-label="Recent transfers">
+              <S.PanelHead>
+                <S.PanelTitle>Recent transfers</S.PanelTitle>
+                <S.HistoryStats>{history.length} total</S.HistoryStats>
+              </S.PanelHead>
+              <S.PanelBody>
+                {recentHistory.length === 0 ? (
+                  <S.EmptyHint>No transfers yet</S.EmptyHint>
+                ) : (
+                  <div>
+                    {recentHistory.map((file) => {
+                      const type =
+                        file.direction === "send" ? "sent" : "received";
+                      return (
+                        <S.InlineHistoryItem key={file.id}>
+                          <S.InlineLeft>
+                            <S.InlineStatusBadge $type={type}>
+                              {file.direction === "send" ? (
+                                <ArrowUp size={12} />
+                              ) : (
+                                <ArrowDown size={12} />
+                              )}
+                            </S.InlineStatusBadge>
+                            <S.InlineFileName title={file.name}>
+                              {trimFileName(file.name, 40)}
+                            </S.InlineFileName>
+                          </S.InlineLeft>
+                          <S.InlineRight>
+                            <S.InlineTime>{formatTime(file.at)}</S.InlineTime>
+                            <S.InlineTypeBadge $type={type}>
+                              {file.direction === "send" ? "SENT" : "RECV"}
+                            </S.InlineTypeBadge>
+                          </S.InlineRight>
+                        </S.InlineHistoryItem>
+                      );
+                    })}
+                  </div>
+                )}
+                {history.length > 0 && (
+                  <S.ViewAllButton onClick={() => setShowHistoryModal(true)}>
+                    {history.length > 3
+                      ? `View all (${history.length})`
+                      : "View all history"}
+                  </S.ViewAllButton>
+                )}
+              </S.PanelBody>
             </S.Panel>
           </S.Row>
         </S.Dashboard>

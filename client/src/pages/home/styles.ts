@@ -71,6 +71,10 @@ export const Panel = styled.section`
 `;
 
 export const PanelHead = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-subtle);
 `;
@@ -589,86 +593,36 @@ export const PasteText = styled.span`
   }
 `;
 
-export const HistorySection = styled.div`
-  margin: 0;
-  padding: 16px;
-  background: transparent;
-  border: none;
-  border-radius: 3px;
-
-  &:hover {
-    border-color: var(--border-medium);
-  }
-
-  [data-theme="light"] & {
-    background: var(--bg-secondary);
-  }
-
-  @media (max-width: 480px) {
-    padding: 16px;
-    margin-top: 22px;
-  }
-`;
-
-export const HistoryHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-`;
-
-export const HistoryTitle = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-
-  svg {
-    color: var(--accent-amber);
-  }
-`;
-
 export const HistoryStats = styled.span`
-  font-size: 12px;
-  color: var(--text-muted);
-  background: var(--bg-glass);
-  padding: 5px 14px;
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  padding: 0 8px;
   border-radius: 3px;
 `;
 
-export const HistoryContent = styled.div`
-  max-height: 240px;
-  overflow-y: auto;
-`;
-
-export const EmptyHistoryState = styled.div`
-  text-align: center;
-  padding: 28px;
-`;
-
-export const InlineHistoryItem = styled.div<{ $delay: number }>`
+export const InlineHistoryItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 18px;
-  background: var(--bg-glass);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  margin-bottom: 10px;
+  gap: 12px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover {
-    border-color: var(--accent-primary);
+    background: var(--bg-secondary);
   }
 
   @media (max-width: 400px) {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
-    padding: 14px;
+    gap: 6px;
   }
 `;
 
@@ -680,11 +634,8 @@ export const InlineLeft = styled.div`
 `;
 
 export const InlineStatusBadge = styled.span<{ $type: "sent" | "received" }>`
-  width: 30px;
-  height: 30px;
-  border-radius: 3px;
-  background: ${(p) =>
-    p.$type === "sent" ? "var(--success-glow)" : "var(--accent-glow)"};
+  width: 24px;
+  height: 24px;
   color: ${(p) =>
     p.$type === "sent" ? "var(--success)" : "var(--accent-primary)"};
   display: flex;
@@ -726,40 +677,20 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
     p.$type === "sent" ? "var(--success)" : "var(--accent-primary)"};
 `;
 
-export const SeeMoreButton = styled.button`
+export const ViewAllButton = styled.button`
   background: transparent;
-  border: 1px dashed var(--border-medium);
+  border: 1px solid var(--border-medium);
   border-radius: 3px;
-  padding: 10px;
+  padding: 8px;
   width: 100%;
   font-size: 13px;
   font-weight: 600;
-  color: var(--accent-primary);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: "Inter", sans-serif;
 
   &:hover {
     background: var(--bg-secondary);
-    border-style: solid;
-    border-color: var(--accent-primary);
-  }
-`;
-
-export const ViewAllButton = styled.button`
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  padding: 14px;
-  width: 100%;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  cursor: pointer;
-  margin-top: 16px;
-  font-family: "Inter", sans-serif;
-
-  &:hover {
-    background: var(--accent-glow);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
   }
