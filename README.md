@@ -102,7 +102,7 @@ locally before pushing.
 
 ## License
 
-MIT.
+MIT. See [LICENSE](LICENSE).
 
 ---
 Originally created by [Jamuel Galicia](https://github.com/jamg26). This is a
