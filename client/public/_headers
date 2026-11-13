@@ -5,7 +5,7 @@
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.throwmyfile.com wss://api.throwmyfile.com; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://throw-files.ngduy10102006.workers.dev wss://throw-files.ngduy10102006.workers.dev; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; object-src 'none'
 
 /manifest.json
   Content-Type: application/manifest+json

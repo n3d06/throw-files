@@ -1,8 +1,7 @@
 export { ThrowFilesChannel } from "./channel";
 
 const ALLOWED_ORIGINS = new Set([
-  "https://throwmyfile.com",
-  "https://www.throwmyfile.com",
+  "https://throw-files.ngduy10102006.workers.dev",
 ]);
 
 // Channel codes are fixed-length; see client/src/utils/channel.ts.
@@ -10,6 +9,7 @@ const CHANNEL_CODE = /^[A-Z0-9]{6}$/;
 
 interface Env {
   THROW_FILES_CHANNEL: DurableObjectNamespace;
+  ASSETS: Fetcher;
 }
 
 /**
@@ -81,10 +81,7 @@ export default {
       });
     }
 
-    // Nothing else touches a Durable Object.
-    return new Response("Not found", {
-      status: 404,
-      headers: corsHeaders(request),
-    });
+    // Everything else is the static frontend (client/build).
+    return env.ASSETS.fetch(request);
   },
 };
