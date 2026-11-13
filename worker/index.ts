@@ -1,6 +1,7 @@
 export { ThrowFilesChannel } from "./channel";
 
 const ALLOWED_ORIGINS = new Set([
+  "https://throw-files.n3d.site",
   "https://throw-files.ngduy10102006.workers.dev",
 ]);
 

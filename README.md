@@ -1,6 +1,7 @@
 # ThrowMyFile
 
-Live: [https://throw-files.ngduy10102006.workers.dev](https://throw-files.ngduy10102006.workers.dev)
+Live: [https://throw-files.n3d.site](https://throw-files.n3d.site)
+(also at [throw-files.ngduy10102006.workers.dev](https://throw-files.ngduy10102006.workers.dev))
 · Source: [github.com/n3d06/throw-files](https://github.com/n3d06/throw-files)
 
 ThrowMyFile moves files between browsers without ever storing them. Open the
@@ -78,7 +79,10 @@ npx wrangler deploy
 ```
 
 In the Cloudflare dashboard (Workers & Pages → your Worker → Domains), make sure
-the `workers.dev` route is enabled.
+the `workers.dev` route is enabled. The custom domain `throw-files.n3d.site` is
+attached there too (Add Domain → Custom domain), not in `wrangler.toml`; every
+domain you serve the site from must be listed in `ALLOWED_ORIGINS` and in the
+CSP `connect-src`.
 
 The frontend reads its URLs from `client/.env.production` at **build** time, so
 changing them needs a rebuild before `wrangler deploy`.
