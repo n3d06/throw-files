@@ -1,7 +1,7 @@
 name            = "throwmyfile"
 main            = "worker/index.ts"
 compatibility_date = "2025-06-01"
-account_id      = "8846c8d2c9e982da3cee1c655ff8cb7c"
+account_id      = "f8944e495ca1b0ceb3548df6160e6b3a"
 
 [durable_objects]
 bindings = [
@@ -14,7 +14,7 @@ new_sqlite_classes = ["ThrowFilesContainer"]
 
 [[migrations]]
 tag         = "v2"
-new_classes = ["ThrowFilesChannel"]
+new_sqlite_classes = ["ThrowFilesChannel"]
 deleted_classes = ["ThrowFilesContainer"]
 
 [observability]
