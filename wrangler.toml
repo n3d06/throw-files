@@ -32,7 +32,8 @@ head_sampling_rate = 1
 enabled = true
 head_sampling_rate = 1
 persist = true
-invocation_logs = true
+# Invocation logs record the request URL, which contains the channel code.
+invocation_logs = false
 
 [observability.traces]
 enabled = false

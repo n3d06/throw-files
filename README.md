@@ -43,7 +43,7 @@ and send.
 
 ```bash
 npm install
-npm install --prefix client --legacy-peer-deps
+npm install --prefix client
 
 npm run dev          # frontend, localhost:3000
 npm run dev:worker   # Worker, localhost:8787

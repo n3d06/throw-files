@@ -1,7 +1,6 @@
 import { defineConfig } from "@rsbuild/core";
 import { pluginReact } from "@rsbuild/plugin-react";
 import { pluginLess } from "@rsbuild/plugin-less";
-import { pluginNodePolyfill } from "@rsbuild/plugin-node-polyfill";
 import path from "path";
 
 export default defineConfig({
@@ -14,7 +13,6 @@ export default defineConfig({
         },
       },
     }),
-    pluginNodePolyfill(),
   ],
   resolve: {
     alias: {

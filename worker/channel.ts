@@ -12,6 +12,9 @@ interface ChunkHeader {
   compressed: boolean;
 }
 
+/** Most devices allowed on one channel; stops a guessed code from being flooded. */
+const MAX_CHANNEL_SOCKETS = 8;
+
 /** Must match MAX_WS_MESSAGE_BYTES in client/src/utils/transfer.ts. */
 const MAX_MESSAGE_BYTES = 1024 * 1024;
 
@@ -39,6 +42,10 @@ export class ThrowFilesChannel {
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
+    }
+
+    if (this.ctx.getWebSockets().length >= MAX_CHANNEL_SOCKETS) {
+      return new Response("Channel is full", { status: 429 });
     }
 
     // index.ts has already validated this.
