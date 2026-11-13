@@ -141,9 +141,9 @@ const Overlay = styled.div`
 `;
 
 const Box = styled.div`
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 0;
   overflow: hidden;
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
   display: flex;
@@ -155,7 +155,7 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 `;
@@ -163,8 +163,10 @@ const Header = styled.div`
 const Title = styled.div`
   font-family: "Inter", sans-serif;
   font-weight: 600;
-  font-size: 16px;
-  color: var(--text-primary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -176,8 +178,8 @@ const CloseBtn = styled.button`
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 14px;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -191,7 +193,7 @@ const CloseBtn = styled.button`
 `;
 
 const Body = styled.div`
-  padding: 24px;
+  padding: 16px;
   color: var(--text-primary);
   font-family: "Inter", sans-serif;
   overflow-y: auto;
@@ -199,7 +201,7 @@ const Body = styled.div`
 `;
 
 const Footer = styled.div`
-  padding: 16px 24px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: flex-end;

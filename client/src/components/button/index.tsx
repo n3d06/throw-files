@@ -164,7 +164,7 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     }
   `,
   danger: css`
-    background: var(--accent-primary);
+    background: var(--danger);
     color: #fff;
     border: none;
 
@@ -200,7 +200,7 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     }
   `,
   success: css`
-    background: var(--accent-primary);
+    background: var(--success);
     color: #fff;
     border: none;
 

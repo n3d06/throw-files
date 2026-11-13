@@ -469,7 +469,6 @@ export const TransferItem = styled.div<{ $delay: number }>`
 
   &:hover {
     border-color: var(--accent-primary);
-    transform: translateX(6px);
   }
 
   [data-theme="light"] & {
@@ -891,7 +890,6 @@ export const InlineHistoryItem = styled.div<{ $delay: number }>`
 
   &:hover {
     border-color: var(--accent-primary);
-    transform: translateX(8px);
   }
 
   @media (max-width: 400px) {
@@ -957,21 +955,21 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
 `;
 
 export const SeeMoreButton = styled.button`
-  background: var(--accent-primary);
+  background: transparent;
   border: 1px dashed var(--border-medium);
   border-radius: 3px;
-  padding: 14px;
+  padding: 10px;
   width: 100%;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent-primary);
   cursor: pointer;
   font-family: "Inter", sans-serif;
 
   &:hover {
-    background: var(--accent-primary);
-    color: white;
+    background: var(--bg-secondary);
     border-style: solid;
+    border-color: var(--accent-primary);
   }
 `;
 
@@ -1071,28 +1069,21 @@ export const FooterLink = styled.a`
 export const ModalTitle = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 18px;
-  font-weight: 700;
+  gap: 10px;
 `;
 
 export const HistoryWrapper = styled.div`
-  width: 36px;
-  height: 36px;
-  background: var(--accent-glow);
-  border-radius: 3px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--accent-primary);
+  color: var(--text-muted);
 `;
 
 export const CountBadge = styled.span`
-  background: var(--accent-gradient);
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 5px 14px;
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
   border-radius: 3px;
 `;
 
@@ -1104,27 +1095,24 @@ export const ModalFooter = styled.div`
 
 export const TabBar = styled.div`
   display: flex;
-  gap: 8px;
-  padding: 6px;
-  background: var(--bg-tertiary);
-  border-radius: 3px;
-  margin-bottom: 24px;
-
-  [data-theme="light"] & {
-    background: var(--bg-secondary);
-  }
+  gap: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 8px;
 `;
 
 export const TabButton = styled.button<{ $active: boolean }>`
   flex: 1;
-  padding: 14px 18px;
+  padding: 10px 14px;
   border: none;
-  background: ${(p) => (p.$active ? "var(--accent-gradient)" : "transparent")};
-  color: ${(p) => (p.$active ? "white" : "var(--text-secondary)")};
+  border-bottom: 2px solid
+    ${(p) => (p.$active ? "var(--accent-primary)" : "transparent")};
+  margin-bottom: -1px;
+  background: transparent;
+  color: ${(p) => (p.$active ? "var(--text-primary)" : "var(--text-secondary)")};
   cursor: pointer;
-  font-size: 14px;
-  font-weight: ${(p) => (p.$active ? "700" : "500")};
-  border-radius: 3px;
+  font-size: 13px;
+  font-weight: ${(p) => (p.$active ? "600" : "500")};
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1132,18 +1120,16 @@ export const TabButton = styled.button<{ $active: boolean }>`
   font-family: "Inter", sans-serif;
 
   &:hover {
-    background: ${(p) =>
-      p.$active ? "var(--accent-gradient)" : "var(--bg-glass)"};
+    color: var(--text-primary);
   }
 `;
 
 export const TabCount = styled.span<{ $active: boolean }>`
-  background: ${(p) =>
-    p.$active ? "rgba(255,255,255,0.2)" : "var(--bg-glass)"};
-  padding: 4px 12px;
+  border: 1px solid var(--border-medium);
+  padding: 0 7px;
   border-radius: 3px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
 `;
 
 export const EmptyState = styled.div`
@@ -1152,9 +1138,9 @@ export const EmptyState = styled.div`
 `;
 
 export const EmptyIconWrapper = styled.div`
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 24px;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
   background: var(--bg-tertiary);
   border-radius: 3px;
   display: flex;
@@ -1185,20 +1171,15 @@ export const HistoryItem = styled.div<{ $visible: boolean; $delay: number }>`
   grid-template-columns: 1fr auto auto;
   gap: 18px;
   align-items: center;
-  padding: 18px 0;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--border-subtle);
-  opacity: ${(p) => (p.$visible ? 1 : 0)};
-  transform: translateX(${(p) => (p.$visible ? 0 : -30)}px);
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: var(--bg-glass);
-    margin: 0 -16px;
-    padding: 18px 16px;
-    border-radius: 3px;
+    background: var(--bg-secondary);
   }
 `;
 

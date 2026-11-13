@@ -31,6 +31,8 @@ export default defineConfig({
     // Title, description and social tags all live in public/index.html so they
     // stay in one place. Setting html.title here would override the template's.
     template: path.resolve(__dirname, "./public/index.html"),
+    // Rsbuild injects public/favicon.ico by default; point it at the SVG instead.
+    favicon: path.resolve(__dirname, "./public/favicon.svg"),
   },
   output: {
     distPath: {
