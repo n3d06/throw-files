@@ -27,10 +27,7 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  Link2,
   Sparkles,
-  Globe,
-  Shield,
   WifiOff,
   Wifi,
 } from "lucide-react";
@@ -38,8 +35,7 @@ import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
 import { Tooltip } from "../../components/tooltip";
 import { socket, type ConnectionState } from "../../utils/throw-socket";
-import { Button, CardBody, Text } from "../../components";
-import { useSpring, useSpringRef, animated } from "react-spring";
+import { Button, Text } from "../../components";
 import ThrowFileUpload, {
   UploadError,
   type SubmitFile,
@@ -156,34 +152,16 @@ const TOAST_ICONS: Record<ToastVariant, JSX.Element> = {
   info: <Info size={18} />,
 };
 
+// Opaque, flat toasts: the card background is solid and the variant is shown by
+// the border and icon colour only.
 const TOAST_STYLES: Record<
   ToastVariant,
   { bg: string; border: string; color: string; iconBg: string }
 > = {
-  success: {
-    bg: "var(--success-glow)",
-    border: "rgba(52, 211, 153, 0.3)",
-    color: "var(--success)",
-    iconBg: "rgba(52, 211, 153, 0.15)",
-  },
-  error: {
-    bg: "rgba(248, 113, 113, 0.12)",
-    border: "rgba(248, 113, 113, 0.35)",
-    color: "var(--danger)",
-    iconBg: "rgba(248, 113, 113, 0.15)",
-  },
-  warning: {
-    bg: "rgba(251, 191, 36, 0.12)",
-    border: "rgba(251, 191, 36, 0.35)",
-    color: "var(--warning)",
-    iconBg: "rgba(251, 191, 36, 0.15)",
-  },
-  info: {
-    bg: "var(--accent-glow)",
-    border: "var(--border-accent)",
-    color: "var(--accent-primary)",
-    iconBg: "rgba(237, 75, 158, 0.15)",
-  },
+  success: { bg: "var(--bg-card)", border: "var(--success)", color: "var(--success)", iconBg: "transparent" },
+  error: { bg: "var(--bg-card)", border: "var(--danger)", color: "var(--danger)", iconBg: "transparent" },
+  warning: { bg: "var(--bg-card)", border: "var(--warning)", color: "var(--warning)", iconBg: "transparent" },
+  info: { bg: "var(--bg-card)", border: "var(--border-strong)", color: "var(--accent-primary)", iconBg: "transparent" },
 };
 
 const Toast = ({
@@ -406,6 +384,9 @@ export const Home = memo(() => {
     socket.connectionState,
   );
   const [connectedUsers, setConnectedUsers] = useState(0);
+  // Read inside sendFiles, which must not be recreated on every count change.
+  const connectedUsersRef = useRef(0);
+  connectedUsersRef.current = connectedUsers;
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [readyFiles, setReadyFiles] = useState<ReadyFile[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -413,7 +394,6 @@ export const Home = memo(() => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const buffersRef = useRef<Record<string, ReceiveBuffer>>({});
@@ -424,16 +404,6 @@ export const Home = memo(() => {
   joinedChannelRef.current = joinedChannel;
 
   const transferring = transfers.length > 0;
-
-  const springRef = useSpringRef();
-  const cardSpring = useSpring({
-    ref: springRef,
-    opacity: isLoaded ? 1 : 0,
-    transform: isLoaded
-      ? "translateY(0) scale(1)"
-      : "translateY(60px) scale(0.95)",
-    config: { tension: 80, friction: 12, precision: 0.001 },
-  });
 
   // ── Toasts ────────────────────────────────────────────────────────────────
 
@@ -547,6 +517,16 @@ export const Home = memo(() => {
           "Not connected",
           "Join a channel and wait for the green light before sending.",
           "error",
+        );
+        return;
+      }
+      // The relay drops chunks when nobody else is in the channel, so sending
+      // alone would report success for a file nobody received.
+      if (connectedUsersRef.current < 2) {
+        addToast(
+          "No one to send to",
+          "Wait for another device to join this channel first.",
+          "warning",
         );
         return;
       }
@@ -877,9 +857,6 @@ export const Home = memo(() => {
   // ── Mount ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    setIsLoaded(true);
-    const timer = setTimeout(() => springRef.start(), 100);
-
     // Shared links are normalized, so `?channel=abc123` now works instead of
     // silently failing validation and never connecting.
     const raw = new URLSearchParams(window.location.search).get("channel");
@@ -893,7 +870,6 @@ export const Home = memo(() => {
     }
     joinChannel(isValidChannelCode(fromUrl) ? fromUrl : generateChannelCode());
 
-    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1026,7 +1002,8 @@ export const Home = memo(() => {
   }, [joinedChannel]);
 
   const recentHistory = history.slice(0, 3);
-  const canSend = connectionState === "open" && !transferring;
+  const hasPeer = connectedUsers > 1;
+  const canSend = connectionState === "open" && hasPeer && !transferring;
 
   return (
     <S.HomeComponent>
@@ -1202,8 +1179,14 @@ export const Home = memo(() => {
                   </S.SendButtonText>
                 </S.SendButton>
                 <S.PasteHint>
-                  drag &amp; drop, or <S.PasteText>paste</S.PasteText> from
-                  the clipboard
+                  {connectionState === "open" && !hasPeer ? (
+                    "Waiting for another device to join this channel…"
+                  ) : (
+                    <>
+                      drag &amp; drop, or <S.PasteText>paste</S.PasteText> from
+                      the clipboard
+                    </>
+                  )}
                 </S.PasteHint>
               </S.SendButtonWrapper>
             )}

@@ -3,75 +3,14 @@
 // presentation interleaved.
 import styled, { css, keyframes, createGlobalStyle } from "styled-components";
 import { Input } from "../../components";
-export const fadeInUp = keyframes`
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-export const fadeInScale = keyframes`
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
-`;
-
-export const shimmer = keyframes`
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-`;
-
-export const pulse = keyframes`
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-`;
-
 export const glow = keyframes`
   0%, 100% { box-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow); }
   50% { box-shadow: 0 0 50px var(--accent-glow-strong), 0 0 100px var(--accent-glow); }
 `;
 
-export const glowPulse = keyframes`
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
-`;
-
-export const gradientShift = keyframes`
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-`;
-
-export const float = keyframes`
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-8px) rotate(2deg); }
-  75% { transform: translateY(4px) rotate(-1deg); }
-`;
-
-export const spin = keyframes`
-  to { transform: rotate(360deg); }
-`;
-
 export const bounce = keyframes`
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
-`;
-
-export const slideInRight = keyframes`
-  from { opacity: 0; transform: translateX(100px); }
-  to { opacity: 1; transform: translateX(0); }
-`;
-
-export const slideInUp = keyframes`
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-export const scaleIn = keyframes`
-  from { opacity: 0; transform: scale(0.8); }
-  to { opacity: 1; transform: scale(1); }
-`;
-
-export const borderGlow = keyframes`
-  0%, 100% { border-color: var(--accent-glow); }
-  50% { border-color: var(--accent-glow-strong); }
 `;
 
 export const GlobalStyle = createGlobalStyle`
@@ -192,141 +131,6 @@ export const Note = styled.p`
   margin-top: auto;
   font-size: 12px;
   color: var(--text-muted);
-`;
-
-export const CardWrapper = styled.div`
-  width: 100%;
-  position: relative;
-
-`;
-
-export const Card = styled.div`
-  background: var(--bg-primary);
-  position: relative;
-  width: 100%;
-
-  /* Full width: one column on phones, controls left and history right on wide screens. */
-  @media (min-width: 900px) {
-    display: grid;
-    grid-template-columns: minmax(360px, 480px) 1fr;
-    align-items: start;
-    column-gap: 24px;
-    padding: 0 24px;
-
-    > :nth-child(2) { display: contents; }
-    > :nth-child(2) > * { grid-column: 1; }
-    > :first-child { grid-column: 1 / -1; }
-    > :nth-child(2) > [aria-label="Recent transfers"] { grid-column: 2; grid-row: 2 / span 20; }
-  }
-`;
-
-export const HeaderSection = styled.div`
-  text-align: center;
-  padding: 32px 28px 24px;
-  position: relative;
-
-  @media (max-width: 480px) {
-    padding: 24px 18px 20px;
-  }
-`;
-
-export const LogoContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-  position: relative;
-`;
-
-export const LogoIcon = styled.div`
-  width: 64px;
-  height: 64px;
-  background: var(--accent-gradient);
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-`;
-
-export const UploadIconWrapper = styled.div`
-  color: white;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
-`;
-
-export const Title = styled.h1`
-  font-size: clamp(26px, 6.5vw, 34px);
-  font-weight: 800;
-  letter-spacing: -1.5px;
-  color: var(--text-primary);
-  margin: 0 0 12px;
-
-  @media (max-width: 360px) {
-    font-size: 24px;
-    letter-spacing: -1px;
-  }
-`;
-
-export const Subtitle = styled.p`
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0 auto 20px;
-  line-height: 1.6;
-  max-width: 34ch;
-
-  @media (max-width: 480px) {
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-`;
-
-export const FeatureBadges = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-
-  @media (max-width: 480px) {
-    gap: 8px;
-  }
-`;
-
-export const Badge = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: var(--bg-glass);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
-
-  svg {
-    color: var(--accent-primary);
-  }
-
-  @media (max-width: 480px) {
-    padding: 5px 10px;
-    font-size: 10px;
-  }
-`;
-
-export const ChannelSection = styled.div`
-  margin-bottom: 20px;
-`;
-
-export const ChannelLabelWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  margin-bottom: 14px;
 `;
 
 export const ChannelBox = styled.div<{ $focused?: boolean }>`
@@ -592,31 +396,6 @@ export const FileSection = styled.div<{ $dragging?: boolean }>`
     `}
 `;
 
-export const ConnectionBanner = styled.div<{ $state: string }>`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-  padding: 10px 14px;
-  border-radius: 3px;
-  font-size: 13px;
-  font-weight: 500;
-  background: ${(p) =>
-    p.$state === "failed"
-      ? "rgba(248, 113, 113, 0.12)"
-      : "rgba(251, 191, 36, 0.12)"};
-  border: 1px solid
-    ${(p) =>
-      p.$state === "failed"
-        ? "rgba(248, 113, 113, 0.35)"
-        : "rgba(251, 191, 36, 0.35)"};
-  color: ${(p) => (p.$state === "failed" ? "var(--danger)" : "var(--warning)")};
-
-  span {
-    flex: 1;
-  }
-`;
-
 export const BannerAction = styled.button`
   background: transparent;
   border: 1px solid currentColor;
@@ -692,6 +471,12 @@ export const ReadyActions = styled.div`
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+
+  /* Match the 34px height of the small Save button. */
+  ${CancelButton} {
+    width: 34px;
+    height: 34px;
+  }
 `;
 
 export const ReadySize = styled.span`
@@ -781,19 +566,6 @@ export const SendButtonIcon = styled.div`
 `;
 
 export const SendButtonText = styled.span``;
-
-export const ButtonShine = styled.div`
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: var(--accent-primary);
-
-  ${SendButton}:hover & {
-    left: 100%;
-  }
-`;
 
 export const PasteHint = styled.p`
   margin-top: 18px;
@@ -998,23 +770,6 @@ export const Footer = styled.div`
   text-align: center;
 `;
 
-export const UserCountBadge = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: var(--text-muted);
-  background: var(--bg-glass);
-  padding: 12px 24px;
-  border-radius: 3px;
-  margin-bottom: 18px;
-  border: 1px solid var(--border-subtle);
-
-  svg {
-    color: var(--accent-emerald);
-  }
-`;
-
 export const FooterLinks = styled.div`
   display: flex;
   align-items: center;
@@ -1203,15 +958,6 @@ export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
   justify-content: center;
   flex-shrink: 0;
 `;
-
-export const HistoryFileNameWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-`;
-
-export const FileName = styled.span``;
 
 export const HistoryItemRight = styled.div`
   display: flex;

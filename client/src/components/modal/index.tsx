@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
-import styled, { keyframes } from "styled-components";
+import styled from "styled-components";
 
 interface ModalProps {
   visible: boolean;
@@ -113,16 +113,6 @@ export const Modal = ({
     document.body,
   );
 };
-
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to   { opacity: 1; }
-`;
-
-const scaleIn = keyframes`
-  from { opacity: 0; transform: scale(0.96) translateY(12px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-`;
 
 const Overlay = styled.div`
   position: fixed;
