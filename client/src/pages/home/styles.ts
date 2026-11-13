@@ -302,7 +302,6 @@ export const Badge = styled.div`
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
-  animation-delay: 0.3s;
 
   svg {
     color: var(--accent-primary);
@@ -340,7 +339,6 @@ export const ChannelBox = styled.div<{ $focused?: boolean }>`
   align-items: center;
   gap: 16px;
   min-width: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     border-color: var(--border-accent);
@@ -398,7 +396,6 @@ export const IconButton = styled.button`
   justify-content: center;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     background: var(--accent-glow);
@@ -469,7 +466,6 @@ export const TransferItem = styled.div<{ $delay: number }>`
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
   padding: 20px 22px;
-  transition: all 0.3s ease;
 
   &:hover {
     border-color: var(--accent-primary);
@@ -558,7 +554,6 @@ export const ProgressFill = styled.div`
   border-radius: 4px;
   /* Progress arrives once per chunk — many times a second. A 0.3s ease made the
      bar visibly lag behind the real byte count. */
-  transition: width 0.12s linear;
   position: relative;
   overflow: hidden;
 `;
@@ -588,9 +583,6 @@ export const FileSection = styled.div<{ $dragging?: boolean }>`
   padding: 32px 16px;
   border: 1px dashed var(--border-strong);
   border-radius: 3px;
-  transition:
-    background 0.2s ease,
-    outline-color 0.2s ease;
 
   ${(p) =>
     p.$dragging &&
@@ -636,7 +628,6 @@ export const BannerAction = styled.button`
   font-weight: 600;
   color: inherit;
   cursor: pointer;
-  transition: all 0.2s ease;
 
   &:hover {
     background: currentColor;
@@ -661,7 +652,6 @@ export const CancelButton = styled.button`
   flex-shrink: 0;
   cursor: pointer;
   color: var(--text-tertiary);
-  transition: all 0.2s ease;
 
   &:hover {
     color: var(--danger);
@@ -747,7 +737,6 @@ export const SendButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: "Inter", sans-serif;
   letter-spacing: -0.02em;
   position: relative;
@@ -787,7 +776,6 @@ export const SendButton = styled.button`
 
 export const SendButtonIcon = styled.div`
   display: flex;
-  transition: transform 0.3s ease;
 
   ${SendButton}:hover & {
   }
@@ -802,7 +790,6 @@ export const ButtonShine = styled.div`
   width: 100%;
   height: 100%;
   background: var(--accent-primary);
-  transition: left 0.7s ease;
 
   ${SendButton}:hover & {
     left: 100%;
@@ -824,7 +811,6 @@ export const PasteText = styled.span`
   color: var(--accent-primary);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 
   &:hover {
     color: var(--accent-secondary);
@@ -838,7 +824,6 @@ export const HistorySection = styled.div`
   background: transparent;
   border: none;
   border-radius: 3px;
-  transition: all 0.3s ease;
 
   &:hover {
     border-color: var(--border-medium);
@@ -903,7 +888,6 @@ export const InlineHistoryItem = styled.div<{ $delay: number }>`
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
   margin-bottom: 10px;
-  transition: all 0.3s ease;
 
   &:hover {
     border-color: var(--accent-primary);
@@ -982,7 +966,6 @@ export const SeeMoreButton = styled.button`
   font-weight: 600;
   color: var(--accent-primary);
   cursor: pointer;
-  transition: all 0.25s ease;
   font-family: "Inter", sans-serif;
 
   &:hover {
@@ -1003,7 +986,6 @@ export const ViewAllButton = styled.button`
   color: var(--text-secondary);
   cursor: pointer;
   margin-top: 16px;
-  transition: all 0.2s ease;
   font-family: "Inter", sans-serif;
 
   &:hover {
@@ -1050,7 +1032,6 @@ export const FooterLinks = styled.div`
     display: flex;
     align-items: center;
     gap: 5px;
-    transition: all 0.2s ease;
 
     &:hover {
       color: var(--accent-primary);
@@ -1068,7 +1049,6 @@ export const FooterLink = styled.a`
   gap: 6px;
   color: var(--text-tertiary);
   text-decoration: none;
-  transition: color 0.2s ease;
 
   &:hover {
     color: var(--accent-primary);
@@ -1145,7 +1125,6 @@ export const TabButton = styled.button<{ $active: boolean }>`
   font-size: 14px;
   font-weight: ${(p) => (p.$active ? "700" : "500")};
   border-radius: 3px;
-  transition: all 0.25s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1210,7 +1189,6 @@ export const HistoryItem = styled.div<{ $visible: boolean; $delay: number }>`
   border-bottom: 1px solid var(--border-subtle);
   opacity: ${(p) => (p.$visible ? 1 : 0)};
   transform: translateX(${(p) => (p.$visible ? 0 : -30)}px);
-  transition: all 0.4s ease ${(p) => p.$delay}ms;
 
   &:last-child {
     border-bottom: none;
@@ -1313,7 +1291,6 @@ export const ToastContainer = styled.div<{ $visible: boolean; $leaving: boolean 
   max-width: 440px;
   transform: translateX(${(p) => (p.$leaving ? "120%" : "0")});
   opacity: ${(p) => (p.$visible ? 1 : 0)};
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 
@@ -1363,7 +1340,6 @@ export const ToastClose = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
   flex-shrink: 0;
 
   &:hover {
@@ -1377,7 +1353,6 @@ export const ToastProgress = styled.div`
   bottom: 0;
   left: 0;
   height: 3px;
-  animation: toastProgress 5s linear forwards;
 
   @keyframes toastProgress {
     from {
@@ -1400,7 +1375,6 @@ export const SkipToContent = styled.a`
   text-decoration: none;
   font-weight: 600;
   border-radius: 0 0 8px 0;
-  transition: top 0.3s ease;
 
   &:focus {
     top: 0;

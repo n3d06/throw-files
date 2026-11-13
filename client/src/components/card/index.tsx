@@ -42,7 +42,6 @@ const GlassCard = styled.div`
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   position: relative;
 
@@ -55,7 +54,6 @@ const GlassCard = styled.div`
     height: 1px;
     background: var(--accent-primary);
     opacity: 0;
-    transition: opacity 0.3s ease;
   }
 
   &:hover {

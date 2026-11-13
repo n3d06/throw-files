@@ -1,13 +1,13 @@
-# ThrowMyFile 🚀
+# ThrowMyFile
 
-[https://throwmyfile.com/](https://throwmyfile.com/)
+Live: [https://throw-files.ngduy10102006.workers.dev](https://throw-files.ngduy10102006.workers.dev)
+· Source: [github.com/n3d06/throw-files](https://github.com/n3d06/throw-files)
 
 ThrowMyFile moves files between browsers without ever storing them. Open the
-site on two devices, put the same channel code into both, and send.
+site on two devices, put the same channel code into both (or scan the QR code),
+and send.
 
-## How it actually works
-
-Worth being precise, because the wording matters:
+## How it works
 
 - The sender's browser slices the file into chunks and streams them over a
   **WebSocket** to a **Cloudflare Worker + Durable Object**, which forwards each
@@ -19,70 +19,87 @@ Worth being precise, because the wording matters:
   is decrypted at the Worker in order to be relayed. Encrypt sensitive files
   yourself before sending them.
 
-If you want end-to-end encryption, that is a genuine feature to add (derive an
-AES-GCM key from the channel code with WebCrypto and encrypt chunks before they
-leave the browser) — not something the current architecture provides.
+## Features
 
-## ✨ Features
+- **Nothing stored**: no database, no file retention, no accounts.
+- **Multiple files**: zipped client-side into one archive.
+- **Explicit saves**: received files stay in the tab until you press Save.
+- **Live progress**: per-transfer progress, cancellation and connection state.
+- **QR code**: show a QR for the channel link so another device can open it.
+- **Drag, drop or paste**, plus a copyable channel code and share link.
+- **Flat, minimal UI**: dashboard layout, no gradients, shadows or animations,
+  light and dark themes, keyboard navigable.
 
-- **Nothing stored** — no database, no file retention, no accounts.
-- **Multiple files** — automatically zipped client-side into one archive.
-- **Explicit saves** — received files are held in the tab until you press Save;
-  nothing lands on your disk without a click.
-- **Live progress** — per-transfer progress, cancellation, and connection state.
-- **Drag, drop, or paste** — plus a copyable channel code and share link.
-- **Light and dark themes**, reduced-motion aware, keyboard navigable.
+## Tech stack
 
-## 🛠️ Tech Stack
+- **Backend**: TypeScript on Cloudflare Workers, one Durable Object per channel,
+  WebSocket Hibernation API.
+- **Frontend**: React 18, Rsbuild, styled-components, JSZip, qrcode-generator.
+- The Worker also serves the built frontend (`client/build`) as static assets,
+  so one deploy covers both.
 
-**Backend** — TypeScript on Cloudflare Workers with a Durable Object per channel,
-using the WebSocket Hibernation API.
-
-**Frontend** — React 18, Rsbuild, styled-components, React Spring, JSZip.
-
-## 🚀 Getting Started
+## Getting started
 
 ```bash
-# Install
 npm install
 npm install --prefix client --legacy-peer-deps
 
-# Run the frontend (localhost:3000)
-npm run dev
-
-# Run the Worker locally (localhost:8787)
-npm run dev:worker
+npm run dev          # frontend, localhost:3000
+npm run dev:worker   # Worker, localhost:8787
 ```
 
-`client/.env.development` already points the frontend at `localhost:8787`.
+`client/.env.development` points the frontend at `localhost:8787`.
 
 ### Checks
 
 ```bash
-npm test        # vitest unit tests (client)
-npm run typecheck   # tsc for both worker and client
+npm test             # vitest unit tests (client)
+npm run typecheck    # tsc for worker and client
 ```
 
-## 🌍 Deployment
+## Deployment (Cloudflare Workers)
 
-CI (`.github/workflows/deploy.yml`) runs typecheck + tests, then deploys on a
-push to `master`:
+You need a free Cloudflare account. Before the first deploy, set these to your
+own values:
 
-- **Frontend** → Cloudflare Pages project `throwmyfile-frontend`, serving
-  `throwmyfile.com`.
-- **Worker** → `npx wrangler deploy`, reachable at `api.throwmyfile.com`.
+| File | What to change |
+|---|---|
+| `wrangler.toml` | `account_id` (run `npx wrangler whoami`), and `name` |
+| `worker/index.ts` | `ALLOWED_ORIGINS`: the public URL of your site |
+| `client/.env.production` | `REACT_APP_BACKEND_URL` and `REACT_APP_FRONTEND_URL` |
+| `client/public/_headers` | the URL in the CSP `connect-src` |
 
-`api.throwmyfile.com` is attached to the Worker as a **Custom Domain configured
-in the Cloudflare dashboard**, not in `wrangler.toml`. Do not point
-`throwmyfile.com` itself at the Worker — that apex is served by Pages.
+Then:
 
-The frontend reads `REACT_APP_BACKEND_URL` and `REACT_APP_FRONTEND_URL` from
-`client/.env.production` at **build** time; they are baked into the bundle, so
-changing them requires a rebuild.
+```bash
+npx wrangler login
+npm run build --prefix client
+npx wrangler deploy
+```
 
-## 📄 License
+In the Cloudflare dashboard (Workers & Pages → your Worker → Domains), make sure
+the `workers.dev` route is enabled.
+
+The frontend reads its URLs from `client/.env.production` at **build** time, so
+changing them needs a rebuild before `wrangler deploy`.
+
+### Automatic deploy (Cloudflare Workers Builds)
+
+There is no GitHub Actions workflow. Instead the Worker is connected to this
+repository in the Cloudflare dashboard (Worker → Settings → Builds), so every
+push to `master` is built and deployed by Cloudflare:
+
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Root directory: `/`
+
+This does not run tests or typechecks. Run `npm test` and `npm run typecheck`
+locally before pushing.
+
+## License
 
 MIT.
 
 ---
-Developed with ❤️ by [Jamuel Galicia](https://github.com/jamg26)
+Originally created by [Jamuel Galicia](https://github.com/jamg26). This is a
+modified fork.

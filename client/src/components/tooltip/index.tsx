@@ -52,10 +52,6 @@ const Tip = styled.span`
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease,
-    visibility 0.15s ease;
 
   &::after {
     content: "";

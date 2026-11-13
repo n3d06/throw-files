@@ -127,7 +127,6 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
       width: 100%;
       height: 100%;
       background: var(--accent-primary);
-      transition: left 0.5s ease;
     }
 
     &:hover:not(:disabled)::before {
@@ -226,7 +225,6 @@ const Btn = styled.button<{
   gap: 8px;
   font-family: "Inter", sans-serif;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   outline: none;
   box-sizing: border-box;
@@ -238,7 +236,6 @@ const Btn = styled.button<{
   ${(p) =>
     p.$animate &&
     css`
-      animation: ${bounceIn} 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     `}
 
   &:disabled {

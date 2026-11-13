@@ -117,7 +117,7 @@ const PrivacyPolicy = () => {
                   something here does not match what you find, that is a bug and
                   we want to hear about it — open an issue on{" "}
                   <PolicyLink
-                    href="https://github.com/jamg26/throw-files"
+                    href="https://github.com/n3d06/throw-files"
                     target="_blank"
                     rel="noopener noreferrer"
                   >

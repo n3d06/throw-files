@@ -1386,7 +1386,7 @@ export const Home = memo(() => {
             <span>© {new Date().getFullYear()} ThrowMyFile</span>
             <S.FooterLink href="/privacy-policy">Privacy</S.FooterLink>
             <S.FooterLink
-              href="https://github.com/jamg26/throw-files"
+              href="https://github.com/n3d06/throw-files"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Source on GitHub"

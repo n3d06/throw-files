@@ -138,7 +138,6 @@ const Overlay = styled.div`
     background: rgba(0, 0, 0, 0.8);
   }
 
-  animation: ${fadeIn} 0.15s ease;
 `;
 
 const Box = styled.div`
@@ -146,7 +145,6 @@ const Box = styled.div`
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
   overflow: hidden;
-  animation: ${scaleIn} 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
   display: flex;
   flex-direction: column;
@@ -184,7 +182,6 @@ const CloseBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
 
   &:hover {
     background: var(--bg-glass-hover);

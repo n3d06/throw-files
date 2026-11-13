@@ -19,7 +19,6 @@ const StyledInput = styled.input`
   font-size: 14px;
   padding: 0 14px;
   outline: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
   &::placeholder {
     color: var(--text-muted);

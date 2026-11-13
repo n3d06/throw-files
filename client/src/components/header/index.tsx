@@ -27,7 +27,7 @@ export const Header = () => {
           {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
         </NavButton>
         <NavAnchor
-          href="https://github.com/jamg26/throw-files"
+          href="https://github.com/n3d06/throw-files"
           target="_blank"
           rel="noopener noreferrer"
           title="View Source on GitHub"
@@ -111,7 +111,6 @@ const navItemStyles = `
   border-radius: 3px;
   color: var(--text-secondary);
   font-size: 17px;
-  transition: all 0.2s ease;
   background: transparent;
   cursor: pointer;
   border: none;
