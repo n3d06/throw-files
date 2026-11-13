@@ -122,10 +122,6 @@ const PrivacyPolicy = () => {
                     rel="noopener noreferrer"
                   >
                     GitHub
-                  </PolicyLink>{" "}
-                  or email{" "}
-                  <PolicyLink href="mailto:jammmg26@gmail.com">
-                    jammmg26@gmail.com
                   </PolicyLink>
                   .
                 </p>
