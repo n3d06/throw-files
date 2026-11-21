@@ -1,7 +1,5 @@
-/* Flat, minimal palette. One accent colour, no gradients, no shadows, no glass.
-   The variable names are kept so existing components keep working; the
-   gradient/glow/shadow variables are now solid colours or `none`.
-   No remote font import: system UI font only, so no third-party request. */
+/* Win32 look as on Windows 10/11: flat, 1px borders, grey buttons with blue hover,
+   white title bars, Segoe UI. No remote font import. */
 
 *,
 *::before,
@@ -12,45 +10,63 @@
 }
 
 :root {
-  --bg-primary: #1b1b1b;
-  --bg-secondary: #222222;
-  --bg-tertiary: #2a2a2a;
-  --bg-elevated: #222222;
-  --bg-glass: #262626;
-  --bg-glass-hover: #2e2e2e;
-  --bg-card: #222222;
-  --bg-card-hover: #222222;
+  --w-face: #e1e1e1; /* button */
+  --w-hi: #ffffff;
+  --w-light: #f0f0f0;
+  --w-shadow: #adadad;
+  --w-dark: #7a7a7a;
+  --w-field: #ffffff;
+  --w-title: #ffffff;
+  --title-fg: #000000;
+  --accent: #0078d7;
 
-  --accent-primary: #4c8bf5;
-  --accent-secondary: #4c8bf5;
-  --accent-tertiary: #4c8bf5;
-  --accent-deep: #3a75db;
-  --accent-emerald: #4caf7a;
-  --accent-coral: #e5655f;
-  --accent-sky: #4c8bf5;
-  --accent-amber: #e0a030;
+  /* Flat 1px Win10/11 borders. Names kept from the old bevel tokens. */
+  --bevel-out: inset 0 0 0 1px #adadad;
+  --bevel-in: inset 0 0 0 1px #7a7a7a;
+  --bevel-etch: inset 0 0 0 1px #d9d9d9;
+  --hover-bg: #e5f1fb;
+  --hover-shadow: inset 0 0 0 1px #0078d7;
+  --press-bg: #cce4f7;
+  --press-shadow: inset 0 0 0 1px #005499;
 
-  --accent-gradient: #4c8bf5;
-  --accent-gradient-2: #4c8bf5;
-  --accent-gradient-3: #4c8bf5;
+  --bg-primary: #f0f0f0;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f3f3;
+  --bg-elevated: #ffffff;
+  --bg-glass: #f3f3f3;
+  --bg-glass-hover: #e5e5e5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
 
+  --accent-primary: #0078d7;
+  --accent-secondary: #0078d7;
+  --accent-tertiary: #0078d7;
+  --accent-deep: #0078d7;
+  --accent-emerald: #107c10;
+  --accent-coral: #c42b1c;
+  --accent-sky: #0078d7;
+  --accent-amber: #806000;
+
+  --accent-gradient: #0078d7;
+  --accent-gradient-2: #0078d7;
+  --accent-gradient-3: #0078d7;
   --accent-glow: transparent;
   --accent-glow-strong: transparent;
 
-  --success: #4caf7a;
+  --success: #107c10;
   --success-glow: transparent;
-  --danger: #e5655f;
-  --warning: #e0a030;
+  --danger: #c42b1c;
+  --warning: #806000;
 
-  --text-primary: #e8e8e8;
-  --text-secondary: #c2c2c2;
-  --text-tertiary: #a0a0a0;
-  --text-muted: #8c8c8c;
+  --text-primary: #000000;
+  --text-secondary: #1a1a1a;
+  --text-tertiary: #4d4d4d;
+  --text-muted: #666666;
 
-  --border-subtle: #333333;
-  --border-medium: #3d3d3d;
-  --border-strong: #505050;
-  --border-accent: #4c8bf5;
+  --border-subtle: #e5e5e5;
+  --border-medium: #d9d9d9;
+  --border-strong: #adadad;
+  --border-accent: #0078d7;
 
   --shadow-sm: none;
   --shadow-md: none;
@@ -59,55 +75,14 @@
   --shadow-glow: none;
   --shadow-glow-accent: none;
 
-  --input-bg: #1b1b1b;
-  --input-border: #3d3d3d;
-  --input-focus: var(--accent-primary);
+  --input-bg: var(--w-field);
+  --input-border: transparent;
+  --input-focus: transparent;
 
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 4px;
-}
-
-[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f6f6f6;
-  --bg-tertiary: #eeeeee;
-  --bg-elevated: #ffffff;
-  --bg-glass: #f6f6f6;
-  --bg-glass-hover: #eeeeee;
-  --bg-card: #ffffff;
-  --bg-card-hover: #ffffff;
-
-  --accent-primary: #1f63d6;
-  --accent-secondary: #1f63d6;
-  --accent-tertiary: #1f63d6;
-  --accent-deep: #1850b0;
-  --accent-emerald: #1e8a57;
-  --accent-coral: #c9423c;
-  --accent-sky: #1f63d6;
-  --accent-amber: #b87908;
-
-  --accent-gradient: #1f63d6;
-  --accent-gradient-2: #1f63d6;
-  --accent-gradient-3: #1f63d6;
-
-  --success: #1e8a57;
-  --danger: #c9423c;
-  --warning: #b87908;
-
-  --text-primary: #1a1a1a;
-  --text-secondary: #444444;
-  --text-tertiary: #5f5f5f;
-  --text-muted: #6b6b6b;
-
-  --border-subtle: #e2e2e2;
-  --border-medium: #d0d0d0;
-  --border-strong: #b5b5b5;
-  --border-accent: #1f63d6;
-
-  --input-bg: #ffffff;
-  --input-border: #c8c8c8;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
 }
 
 html,
@@ -116,34 +91,33 @@ body {
 }
 
 body {
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    sans-serif;
+  font-family: "Segoe UI", system-ui, Tahoma, Arial, sans-serif;
+  font-size: 14px;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
   min-height: 100dvh;
-  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-/* Keyboard focus must stay visible now that shadows are gone. */
+button,
+input {
+  font-family: inherit;
+}
+
+/* Win32 focus is a dotted rectangle. */
 :focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+  outline: 1px dotted var(--text-primary);
+  outline-offset: -4px;
 }
 
 * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: var(--w-face) var(--w-light);
 }
 
 ::selection {
-  background: var(--accent-primary);
+  background: #0078d7;
   color: #ffffff;
 }
 

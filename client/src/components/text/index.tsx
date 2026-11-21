@@ -25,7 +25,6 @@ export const Text = ({
 }: TextProps) => {
   const s: CSSProperties = {
     color: "var(--text-primary)",
-    fontFamily: "Inter, sans-serif",
     ...style,
   };
 

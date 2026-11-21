@@ -145,22 +145,18 @@ function formatTime(at: number): string {
 }
 
 const TOAST_ICONS: Record<ToastVariant, JSX.Element> = {
-  success: <CheckCircle size={18} />,
-  error: <AlertCircle size={18} />,
-  warning: <AlertCircle size={18} />,
-  info: <Info size={18} />,
+  success: <CheckCircle size={16} />,
+  error: <AlertCircle size={16} />,
+  warning: <AlertCircle size={16} />,
+  info: <Info size={16} />,
 };
 
-// Opaque, flat toasts: the card background is solid and the variant is shown by
-// the border and icon colour only.
-const TOAST_STYLES: Record<
-  ToastVariant,
-  { bg: string; border: string; color: string; iconBg: string }
-> = {
-  success: { bg: "var(--bg-card)", border: "var(--success)", color: "var(--success)", iconBg: "transparent" },
-  error: { bg: "var(--bg-card)", border: "var(--danger)", color: "var(--danger)", iconBg: "transparent" },
-  warning: { bg: "var(--bg-card)", border: "var(--warning)", color: "var(--warning)", iconBg: "transparent" },
-  info: { bg: "var(--bg-card)", border: "var(--border-strong)", color: "var(--accent-primary)", iconBg: "transparent" },
+// Flat toasts: the variant shows in the left bar and icon colour only.
+const TOAST_STYLES: Record<ToastVariant, string> = {
+  success: "var(--success)",
+  error: "var(--danger)",
+  warning: "var(--warning)",
+  info: "var(--accent-primary)",
 };
 
 const Toast = ({
@@ -194,17 +190,15 @@ const Toast = ({
     return () => clearTimeout(remove);
   }, [leaving, toast.id]);
 
-  const styles = TOAST_STYLES[toast.type];
+  const color = TOAST_STYLES[toast.type];
 
   return (
     <S.ToastContainer
       $visible={visible}
       $leaving={leaving}
-      style={{ background: styles.bg, borderColor: styles.border }}
+      style={{ borderLeftColor: color }}
     >
-      <S.ToastIconWrapper
-        style={{ background: styles.iconBg, color: styles.color }}
-      >
+      <S.ToastIconWrapper style={{ color }}>
         {TOAST_ICONS[toast.type]}
       </S.ToastIconWrapper>
       <S.ToastContent>
@@ -212,9 +206,8 @@ const Toast = ({
         <S.ToastDescription>{toast.description}</S.ToastDescription>
       </S.ToastContent>
       <S.ToastClose onClick={() => setLeaving(true)} aria-label="Dismiss">
-        <X size={14} />
+        <X size={12} />
       </S.ToastClose>
-      <S.ToastProgress style={{ background: styles.color }} />
     </S.ToastContainer>
   );
 };
@@ -286,7 +279,7 @@ const HistoryModal = ({
       title={
         <S.ModalTitle>
           <S.HistoryWrapper>
-            <History size={18} />
+            <History size={16} />
           </S.HistoryWrapper>
           Transfer History
           <S.CountBadge>{history.length}</S.CountBadge>
@@ -337,10 +330,10 @@ const HistoryModal = ({
         </S.EmptyState>
       ) : (
         <S.HistoryList>
-          {files.map((file, index) => {
+          {files.map((file) => {
             const type = file.direction === "send" ? "sent" : "received";
             return (
-              <S.HistoryItem key={file.id} $visible $delay={index * 40}>
+              <S.HistoryItem key={file.id}>
                 <S.HistoryItemLeft>
                   <S.StatusBadge $type={type}>
                     {file.direction === "send" ? (
@@ -1009,7 +1002,6 @@ export const Home = memo(() => {
       <S.SkipToContent href="#main-content">
         Skip to main content
       </S.SkipToContent>
-      <S.GlobalStyle />
 
       <S.ToastContainerWrapper
         role="status"
@@ -1100,7 +1092,7 @@ export const Home = memo(() => {
             <Button
               variant="primary"
               onClick={() => joinChannel(code)}
-              style={{ height: 40 }}
+              style={{ height: 32 }}
               disabled={
                 !isValidChannelCode(code) ||
                 transferring ||
@@ -1198,7 +1190,7 @@ export const Home = memo(() => {
               <S.PanelBody>
           {transfers.length > 0 && (
             <S.TransferList>
-              {transfers.map((transfer, index) => {
+              {transfers.map((transfer) => {
                 const receiving = transfer.direction === "receive";
                 const percent =
                   transfer.size > 0
@@ -1208,7 +1200,7 @@ export const Home = memo(() => {
                       )
                     : 0;
                 return (
-                  <S.TransferItem key={transfer.id} $delay={index * 100}>
+                  <S.TransferItem key={transfer.id}>
                     <S.TransferItemHeader>
                       <S.FileNameWrapper>
                         <S.FileIconWrapper $receiving={receiving}>

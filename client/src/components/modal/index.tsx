@@ -102,7 +102,7 @@ export const Modal = ({
           <Header>
             <Title id="modal-title">{title}</Title>
             <CloseBtn onClick={onClose} aria-label="Close">
-              <X size={18} />
+              <X size={14} />
             </CloseBtn>
           </Header>
         )}
@@ -122,7 +122,7 @@ const Overlay = styled.div`
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.3);
 
   @supports not (backdrop-filter: blur(8px)) {
     background: rgba(0, 0, 0, 0.8);
@@ -132,7 +132,7 @@ const Overlay = styled.div`
 
 const Box = styled.div`
   background: var(--bg-card);
-  border: 1px solid var(--border-medium);
+  box-shadow: 0 0 0 1px #888, 0 8px 28px rgba(0, 0, 0, 0.35);
   border-radius: 0;
   overflow: hidden;
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
@@ -145,54 +145,50 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 0 0 12px;
+  height: 32px;
+  background: var(--w-title);
   flex-shrink: 0;
 `;
 
 const Title = styled.div`
-  font-family: "Inter", sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--title-fg);
   display: flex;
   align-items: center;
   gap: 10px;
 `;
 
 const CloseBtn = styled.button`
-  background: var(--bg-glass);
-  border: 1px solid var(--border-subtle);
+  background: transparent;
+  border: none;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 14px;
-  width: 28px;
-  height: 28px;
-  border-radius: 3px;
+  width: 46px;
+  height: 32px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    background: var(--bg-glass-hover);
-    color: var(--text-primary);
-    border-color: var(--border-medium);
+    background: #e81123;
+    color: #fff;
   }
+
 `;
 
 const Body = styled.div`
   padding: 16px;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
   overflow-y: auto;
   flex: 1;
 `;
 
 const Footer = styled.div`
   padding: 12px 16px;
-  border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -206,7 +202,7 @@ const X = ({ size }: { size: number }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="1.5"
     strokeLinecap="round"
     strokeLinejoin="round"
   >

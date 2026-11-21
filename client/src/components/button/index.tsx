@@ -58,8 +58,8 @@ const Spin = styled.span`
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #fff;
+  border: 2px solid #bcbcbc;
+  border-top-color: var(--text-primary);
   border-radius: 50%;
   animation: ${spin} 0.6s linear infinite;
   flex-shrink: 0;
@@ -76,128 +76,39 @@ type Variant = ButtonProps["variant"];
 
 const sizeStyles: Record<Size, ReturnType<typeof css>> = {
   small: css`
-    padding: 8px 14px;
+    padding: 0 10px;
     font-size: 12px;
-    height: 34px;
-    border-radius: 3px;
-    font-weight: 600;
+    height: 24px;
   `,
   middle: css`
-    padding: 10px 18px;
-    font-size: 14px;
-    height: 42px;
-    border-radius: 3px;
-    font-weight: 600;
+    padding: 0 14px;
+    font-size: 13px;
+    height: 28px;
   `,
   large: css`
-    padding: 14px 28px;
-    font-size: 15px;
-    height: 52px;
-    border-radius: 3px;
-    font-weight: 700;
+    padding: 0 20px;
+    font-size: 14px;
+    height: 34px;
   `,
 };
 
 const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
   primary: css`
-    background: var(--accent-gradient);
-    background-size: 200% 200%;
-    color: #fff;
-    border: none;
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: var(--accent-primary);
-    }
-
-    &:hover:not(:disabled)::before {
-      left: 100%;
-    }
-
-    &:hover:not(:disabled) {
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0) scale(0.98);
-    }
+    font-weight: 700;
+    /* Default button: blue frame. */
+    box-shadow: inset 0 0 0 2px var(--accent);
   `,
-  secondary: css`
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-medium);
-
-    &:hover:not(:disabled) {
-      background: var(--bg-glass-hover);
-      border-color: var(--accent-primary);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    [data-theme="light"] & {
-      background: var(--bg-secondary);
-      border-color: var(--border-subtle);
-
-      &:hover:not(:disabled) {
-        background: var(--bg-tertiary);
-      }
-    }
-  `,
+  secondary: css``,
   danger: css`
-    background: var(--danger);
-    color: #fff;
-    border: none;
-
-    &:hover:not(:disabled) {
-      filter: brightness(1.08);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-  `,
-  text: css`
-    background: transparent;
-    color: var(--text-secondary);
-    border: none;
-    padding-left: 10px;
-    padding-right: 10px;
-
-    &:hover:not(:disabled) {
-      color: var(--accent-primary);
-      background: var(--accent-glow);
-    }
-  `,
-  tertiary: css`
-    background: transparent;
-    color: var(--accent-primary);
-    border: 1px dashed var(--border-medium);
-
-    &:hover:not(:disabled) {
-      background: var(--accent-glow);
-      border-color: var(--accent-primary);
-      border-style: solid;
-    }
+    color: var(--danger);
   `,
   success: css`
-    background: var(--success);
-    color: #fff;
-    border: none;
-
-    &:hover:not(:disabled) {
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
+    color: var(--success);
+  `,
+  tertiary: css``,
+  text: css`
+    background: transparent;
+    box-shadow: none;
   `,
 };
 
@@ -211,36 +122,43 @@ const Btn = styled.button<{
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-family: "Inter", sans-serif;
   cursor: pointer;
   white-space: nowrap;
-  outline: none;
   box-sizing: border-box;
-  letter-spacing: -0.01em;
+  border: none;
+  border-radius: 0;
+  background: var(--w-face);
+  color: var(--text-primary);
+  box-shadow: var(--bevel-out);
 
   ${(p) => sizeStyles[p.$size]}
   ${(p) => variantStyles[p.$variant]}
-  
-  ${(p) =>
-    p.$animate &&
-    css`
-    `}
+
+  &:hover:not(:disabled) {
+    background: var(--hover-bg);
+    box-shadow: var(--hover-shadow);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--press-bg);
+    box-shadow: var(--press-shadow);
+  }
 
   &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none !important;
+    color: #a0a0a0;
+    background: #cccccc;
+    box-shadow: inset 0 0 0 1px #bfbfbf;
+    cursor: default;
   }
 
   ${(p) =>
     p.$loading &&
     css`
       cursor: wait;
-      opacity: 0.8;
     `}
 
   &:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
+    outline: 1px dotted var(--text-primary);
+    outline-offset: -4px;
   }
 `;

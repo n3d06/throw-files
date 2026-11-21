@@ -7,20 +7,16 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 export const Card = ({ isWarning, style, ...props }: CardProps) => {
   const combinedStyle: CSSProperties = isWarning
-    ? { ...style, border: "1px solid var(--accent-primary)" }
+    ? { ...style, outline: "1px solid var(--accent-primary)" }
     : { ...style };
   return <GlassCard style={combinedStyle} {...props} />;
 };
 
 export const CardBody = styled.div`
-  padding: 28px;
-
-  @media (max-width: 480px) {
-    padding: 18px;
-  }
+  padding: 16px;
 
   @media (min-width: 1024px) {
-    padding: 36px;
+    padding: 24px;
   }
 `;
 
@@ -30,8 +26,10 @@ export const CardHeader = ({
 }: HTMLAttributes<HTMLDivElement>) => (
   <div
     style={{
-      padding: "28px 28px 20px",
+      padding: "8px 16px",
+      background: "var(--w-title)",
       borderBottom: "1px solid var(--border-subtle)",
+      fontWeight: 600,
       ...style,
     }}
     {...props}
@@ -39,28 +37,7 @@ export const CardHeader = ({
 );
 
 const GlassCard = styled.div`
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  overflow: hidden;
+  background: var(--bg-card);
+  box-shadow: var(--bevel-etch);
   position: relative;
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--accent-primary);
-    opacity: 0;
-  }
-
-  &:hover {
-    border-color: var(--border-medium);
-
-    &::before {
-      opacity: 1;
-    }
-  }
 `;

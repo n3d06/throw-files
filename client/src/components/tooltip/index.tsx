@@ -37,14 +37,13 @@ const Tip = styled.span`
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) translateY(0);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-medium);
-  color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  background: #f2f2f2;
+  border: 1px solid #767676;
+  color: #575757;
   font-size: 12px;
   line-height: 1.5;
-  padding: 7px 10px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 0;
   white-space: pre-wrap;
   max-width: 260px;
   text-align: center;
@@ -53,13 +52,4 @@ const Tip = styled.span`
   opacity: 0;
   visibility: hidden;
 
-  &::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: var(--bg-elevated);
-  }
 `;

@@ -12,12 +12,12 @@ const StyledInput = styled.input`
   width: 100%;
   box-sizing: border-box;
   background: var(--input-bg);
-  border: 1px solid var(--input-border);
+  border: none;
+  box-shadow: var(--bevel-in);
   color: var(--text-primary);
-  border-radius: 3px;
-  font-family: "Inter", sans-serif;
-  font-size: 14px;
-  padding: 0 14px;
+  border-radius: 0;
+  font-size: 13px;
+  padding: 0 6px;
   outline: none;
 
   &::placeholder {
@@ -25,12 +25,10 @@ const StyledInput = styled.input`
   }
 
   &:hover {
-    border-color: var(--border-medium);
-    background: var(--bg-glass);
+    box-shadow: inset 0 0 0 1px #171717;
   }
 
   &:focus {
-    border-color: var(--input-focus);
-    background: var(--bg-glass);
+    box-shadow: inset 0 0 0 1px var(--accent);
   }
 `;

@@ -1,32 +1,12 @@
 // Styled-components and keyframes for the Home page.
 // Split out of index.tsx, which had grown past 2,400 lines with logic and
 // presentation interleaved.
-import styled, { css, keyframes, createGlobalStyle } from "styled-components";
+import styled, { css, keyframes } from "styled-components";
 import { Input } from "../../components";
-export const glow = keyframes`
-  0%, 100% { box-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow); }
-  50% { box-shadow: 0 0 50px var(--accent-glow-strong), 0 0 100px var(--accent-glow); }
-`;
-
 export const bounce = keyframes`
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
 `;
-
-export const GlobalStyle = createGlobalStyle`
-  @keyframes bounce {
-    0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
-    40% { transform: scale(1); opacity: 1; }
-  }
-  
-  @keyframes particleFloat {
-    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-    10% { opacity: 0.8; }
-    90% { opacity: 0.8; }
-    100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
-  }
-`;
-
 
 export const HomeComponent = styled.div`
   min-height: 100vh;
@@ -38,7 +18,7 @@ export const HomeComponent = styled.div`
 export const MainContainer = styled.div`
   max-width: 1100px;
   margin: 0 auto;
-  padding: 72px 16px 24px;
+  padding: 46px 12px 24px;
 
   &:focus:not(:focus-visible) {
     outline: none;
@@ -66,8 +46,8 @@ export const Panel = styled.section`
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border: 1px solid var(--border-medium);
   background: var(--bg-card);
+  box-shadow: var(--bevel-etch);
 `;
 
 export const PanelHead = styled.div`
@@ -75,7 +55,9 @@ export const PanelHead = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 4px 12px;
+  min-height: 34px;
+  background: var(--w-title);
   border-bottom: 1px solid var(--border-subtle);
 `;
 
@@ -84,7 +66,7 @@ export const PanelBody = styled.div`
   flex-direction: column;
   gap: 12px;
   flex: 1;
-  padding: 16px;
+  padding: 12px;
 `;
 
 export const StatusLine = styled.div<{ $state: string }>`
@@ -111,11 +93,9 @@ export const EmptyHint = styled.p`
   color: var(--text-muted);
 `;
 export const PanelTitle = styled.h2`
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: var(--title-fg);
   margin: 0;
 `;
 
@@ -138,25 +118,16 @@ export const Note = styled.p`
 `;
 
 export const ChannelBox = styled.div<{ $focused?: boolean }>`
-  background: var(--bg-tertiary);
-  border: 1px solid
-    ${(p) => (p.$focused ? "var(--accent-primary)" : "var(--border-subtle)")};
-  border-radius: 3px;
+  background: var(--w-field);
+  box-shadow: var(--bevel-in);
+  outline: ${(p) => (p.$focused ? "1px solid var(--accent)" : "none")};
+  outline-offset: -1px;
+  border-radius: 0;
   padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 16px;
   min-width: 0;
-
-  &:hover {
-    border-color: var(--border-accent);
-  }
-
-  [data-theme="light"] & {
-    background: var(--bg-secondary);
-    border-color: ${(p) =>
-      p.$focused ? "var(--accent-primary)" : "var(--border-subtle)"};
-  }
 
   @media (max-width: 480px) {
     flex-direction: column;
@@ -167,7 +138,7 @@ export const ChannelBox = styled.div<{ $focused?: boolean }>`
 `;
 
 export const ChannelCode = styled.span`
-  font-family: "Inter", monospace;
+  font-family: "Courier New", monospace;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 3px;
@@ -194,30 +165,30 @@ export const ActionButtons = styled.div`
 `;
 
 export const IconButton = styled.button`
-  background: var(--bg-glass);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  min-width: 40px;
-  height: 40px;
+  background: var(--w-face);
+  border: none;
+  box-shadow: var(--bevel-out);
+  color: var(--text-primary);
+  min-width: 32px;
+  height: 32px;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--text-secondary);
 
   &:hover {
-    background: var(--accent-glow);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
+    background: var(--hover-bg);
+    box-shadow: var(--hover-shadow);
   }
 
   &:active {
-    transform: scale(0.95);
+    background: var(--press-bg);
+    box-shadow: var(--press-shadow);
   }
 `;
 
 export const IconButtonSecondary = styled(IconButton)`
-  background: var(--bg-tertiary);
 `;
 
 export const InputWrapper = styled.div`
@@ -248,17 +219,24 @@ export const JoinSection = styled.div`
 `;
 
 export const StyledInput = styled(Input)`
-  height: 40px;
+  height: 32px;
   font-size: 15px;
-  letter-spacing: 3px;
-  border-radius: 3px;
+  letter-spacing: 2px;
+  border-radius: 0;
   text-transform: uppercase;
   font-weight: 600;
 
+  &:hover {
+    box-shadow: inset 0 0 0 1px #171717;
+  }
+
+  &:focus {
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
   @media (max-width: 480px) {
-    height: 48px;
+    height: 36px;
     font-size: 15px;
-    letter-spacing: 2px;
   }
 `;
 
@@ -269,19 +247,9 @@ export const TransferList = styled.div`
   margin-bottom: 28px;
 `;
 
-export const TransferItem = styled.div<{ $delay: number }>`
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  padding: 20px 22px;
-
-  &:hover {
-    border-color: var(--accent-primary);
-  }
-
-  [data-theme="light"] & {
-    background: var(--bg-secondary);
-  }
+export const TransferItem = styled.div`
+  box-shadow: var(--bevel-etch);
+  padding: 12px 14px;
 `;
 
 export const TransferItemHeader = styled.div`
@@ -289,7 +257,7 @@ export const TransferItemHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 `;
 
 export const FileNameWrapper = styled.div`
@@ -319,9 +287,9 @@ export const ZipBadge = styled.span`
   font-size: 9px;
   font-weight: 700;
   color: var(--accent-tertiary);
-  background: rgba(192, 132, 252, 0.15);
-  padding: 4px 10px;
-  border-radius: 3px;
+  box-shadow: var(--bevel-out);
+  padding: 2px 6px;
+  border-radius: 0;
   text-transform: uppercase;
   flex-shrink: 0;
 `;
@@ -341,7 +309,7 @@ export const TransferStatus = styled.span<{ $receiving?: boolean }>`
 export const StatusDot = styled.span<{ $receiving?: boolean }>`
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 0;
   background: ${(p) =>
     p.$receiving ? "var(--accent-sky)" : "var(--accent-emerald)"};
 `;
@@ -349,7 +317,7 @@ export const StatusDot = styled.span<{ $receiving?: boolean }>`
 export const ProgressTrack = styled.div`
   height: 8px;
   background: var(--border-subtle);
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
   margin-bottom: 12px;
   position: relative;
@@ -358,7 +326,7 @@ export const ProgressTrack = styled.div`
 export const ProgressFill = styled.div`
   height: 100%;
   background: var(--accent-gradient);
-  border-radius: 4px;
+  border-radius: 0;
   /* Progress arrives once per chunk — many times a second. A 0.3s ease made the
      bar visibly lag behind the real byte count. */
   position: relative;
@@ -388,61 +356,57 @@ export const FileSection = styled.div<{ $dragging?: boolean }>`
   justify-content: center;
   min-height: 200px;
   padding: 32px 16px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 3px;
+  border: 1px dotted var(--text-primary);
+  border-radius: 0;
 
   ${(p) =>
     p.$dragging &&
     css`
-      background: var(--bg-secondary);
-      border-color: var(--accent-primary);
-      border-style: solid;
+      background: var(--w-light);
     `}
 `;
 
 export const BannerAction = styled.button`
-  background: transparent;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  padding: 4px 12px;
-  font-family: "Inter", sans-serif;
+  background: var(--w-face);
+  box-shadow: var(--bevel-out);
+  border: none;
+  padding: 3px 10px;
   font-size: 12px;
-  font-weight: 600;
-  color: inherit;
+  color: var(--text-primary);
   cursor: pointer;
 
   &:hover {
-    background: currentColor;
-    filter: brightness(1.4);
+    background: var(--hover-bg);
+    box-shadow: var(--hover-shadow);
   }
 
-  &:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 2px;
+  &:active {
+    background: var(--press-bg);
+    box-shadow: var(--press-shadow);
   }
 `;
 
 export const CancelButton = styled.button`
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  width: 28px;
-  height: 28px;
+  background: var(--w-face);
+  box-shadow: var(--bevel-out);
+  border: none;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  color: var(--text-tertiary);
+  color: var(--text-primary);
 
   &:hover {
-    color: var(--danger);
-    border-color: var(--danger);
+    background: var(--hover-bg);
+    box-shadow: var(--hover-shadow);
   }
 
-  &:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
+  &:active {
+    background: var(--press-bg);
+    box-shadow: var(--press-shadow);
   }
 `;
 
@@ -458,10 +422,9 @@ export const ReadyItem = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 14px 16px;
-  background: var(--success-glow);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 3px;
+  padding: 8px 10px;
+  box-shadow: var(--bevel-etch);
+  border-radius: 0;
 
   @media (max-width: 480px) {
     flex-direction: column;
@@ -478,8 +441,8 @@ export const ReadyActions = styled.div`
 
   /* Match the 34px height of the small Save button. */
   ${CancelButton} {
-    width: 34px;
-    height: 34px;
+    width: 26px;
+    height: 26px;
   }
 `;
 
@@ -496,9 +459,9 @@ export const LoadingDotsWrapper = styled.div`
 export const LoadingDot = styled.div`
   width: 12px;
   height: 12px;
-  border-radius: 50%;
-  background: var(--accent-gradient);
-  animation: bounce 1.4s ease-in-out infinite both;
+  border-radius: 0;
+  background: #0078d7;
+  animation: ${bounce} 1.4s ease-in-out infinite both;
 
   &:nth-of-type(1) {
     animation-delay: -0.32s;
@@ -513,60 +476,52 @@ export const SendButtonWrapper = styled.div`
 `;
 
 export const SendButton = styled.button`
-  background: var(--accent-gradient);
-  background-size: 200% 200%;
-  color: white;
+  background: var(--w-face);
+  color: var(--text-primary);
   border: none;
-  border-radius: 3px;
-  padding: 10px 28px;
-  font-size: 15px;
-  font-weight: 600;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: 0;
+  padding: 6px 24px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-family: "Inter", sans-serif;
-  letter-spacing: -0.02em;
-  position: relative;
-  overflow: hidden;
+  gap: 8px;
 
-  &:hover {
+  &:hover:not(:disabled) {
+    background: var(--hover-bg);
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
 
-  &:active {
-  }
-
-  [data-theme="light"] & {
-
-    &:hover {
-    }
+  &:active:not(:disabled) {
+    background: var(--press-bg);
+    box-shadow: inset 0 0 0 2px #005499;
   }
 
   &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    transform: none;
+    color: #a0a0a0;
+    background: #cccccc;
+    box-shadow: inset 0 0 0 1px #bfbfbf;
+    cursor: default;
   }
 
   &:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 4px;
+    outline: 1px dotted var(--text-primary);
+    outline-offset: -5px;
   }
 
   @media (max-width: 480px) {
     width: 100%;
-    padding: 16px 24px;
-    font-size: 16px;
+    padding: 10px 24px;
+    font-size: 15px;
     gap: 10px;
-    border-radius: 3px;
+    border-radius: 0;
   }
 `;
 
 export const SendButtonIcon = styled.div`
   display: flex;
-
-  ${SendButton}:hover & {
-  }
 `;
 
 export const SendButtonText = styled.span``;
@@ -584,7 +539,7 @@ export const PasteHint = styled.p`
 
 export const PasteText = styled.span`
   color: var(--accent-primary);
-  font-weight: 600;
+  text-decoration: underline;
   cursor: pointer;
 
   &:hover {
@@ -594,13 +549,13 @@ export const PasteText = styled.span`
 `;
 
 export const HistoryStats = styled.span`
-  border: 1px solid var(--border-medium);
+  box-shadow: var(--bevel-in);
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 14px;
   font-weight: 600;
   padding: 0 8px;
-  border-radius: 3px;
+  border-radius: 0;
 `;
 
 export const InlineHistoryItem = styled.div`
@@ -616,7 +571,7 @@ export const InlineHistoryItem = styled.div`
   }
 
   &:hover {
-    background: var(--bg-secondary);
+    background: var(--w-light);
   }
 
   @media (max-width: 400px) {
@@ -678,21 +633,23 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
 `;
 
 export const ViewAllButton = styled.button`
-  background: transparent;
-  border: 1px solid var(--border-medium);
-  border-radius: 3px;
-  padding: 8px;
+  background: var(--w-face);
+  box-shadow: var(--bevel-out);
+  border: none;
+  padding: 5px;
   width: 100%;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
-  font-family: "Inter", sans-serif;
 
   &:hover {
-    background: var(--bg-secondary);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
+    background: var(--hover-bg);
+    box-shadow: var(--hover-shadow);
+  }
+
+  &:active {
+    background: var(--press-bg);
+    box-shadow: var(--press-shadow);
   }
 `;
 
@@ -740,17 +697,12 @@ export const FooterLink = styled.a`
   }
 
   &:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: 1px dotted var(--text-primary);
+    outline-offset: 1px;
+    border-radius: 0;
   }
 `;
 
-// Particles
-//
-// This used to be an empty styled.div while the real rules lived in App.less
-// under a `.particles` class the component never applied. The particles were
-// therefore unclipped (they travel +/-100vh) and visible in light mode.
 // Modal Components
 export const ModalTitle = styled.div`
   display: flex;
@@ -765,12 +717,12 @@ export const HistoryWrapper = styled.div`
 `;
 
 export const CountBadge = styled.span`
-  border: 1px solid var(--border-medium);
+  box-shadow: var(--bevel-in);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
   padding: 1px 8px;
-  border-radius: 3px;
+  border-radius: 0;
 `;
 
 export const ModalFooter = styled.div`
@@ -782,7 +734,7 @@ export const ModalFooter = styled.div`
 export const TabBar = styled.div`
   display: flex;
   gap: 0;
-  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 1px var(--w-hi);
   margin-bottom: 8px;
 `;
 
@@ -790,9 +742,7 @@ export const TabButton = styled.button<{ $active: boolean }>`
   flex: 1;
   padding: 10px 14px;
   border: none;
-  border-bottom: 2px solid
-    ${(p) => (p.$active ? "var(--accent-primary)" : "transparent")};
-  margin-bottom: -1px;
+  box-shadow: ${(p) => (p.$active ? "inset 0 -2px var(--accent)" : "none")};
   background: transparent;
   color: ${(p) => (p.$active ? "var(--text-primary)" : "var(--text-secondary)")};
   cursor: pointer;
@@ -803,17 +753,14 @@ export const TabButton = styled.button<{ $active: boolean }>`
   align-items: center;
   justify-content: center;
   gap: 10px;
-  font-family: "Inter", sans-serif;
 
-  &:hover {
-    color: var(--text-primary);
-  }
+  
 `;
 
 export const TabCount = styled.span<{ $active: boolean }>`
-  border: 1px solid var(--border-medium);
+  box-shadow: var(--bevel-in);
   padding: 0 7px;
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 11px;
   font-weight: 600;
 `;
@@ -827,8 +774,8 @@ export const EmptyIconWrapper = styled.div`
   width: 56px;
   height: 56px;
   margin: 0 auto 16px;
-  background: var(--bg-tertiary);
-  border-radius: 3px;
+  box-shadow: var(--bevel-in);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -852,7 +799,7 @@ export const HistoryList = styled.div`
   overflow-y: auto;
 `;
 
-export const HistoryItem = styled.div<{ $visible: boolean; $delay: number }>`
+export const HistoryItem = styled.div`
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 18px;
@@ -865,7 +812,7 @@ export const HistoryItem = styled.div<{ $visible: boolean; $delay: number }>`
   }
 
   &:hover {
-    background: var(--bg-secondary);
+    background: var(--w-light);
   }
 `;
 
@@ -879,10 +826,8 @@ export const HistoryItemLeft = styled.div`
 export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
   width: 32px;
   height: 32px;
-  border-radius: 3px;
-  background: ${(p) =>
-    p.$type === "sent" ? "var(--success-glow)" : "var(--accent-glow)"};
-  color: ${(p) =>
+  border-radius: 0;
+    color: ${(p) =>
     p.$type === "sent" ? "var(--success)" : "var(--accent-primary)"};
   display: flex;
   align-items: center;
@@ -918,35 +863,36 @@ export const FileSizeText = styled.span`
 // Toast Components
 export const ToastContainerWrapper = styled.div`
   position: fixed;
-  top: 90px;
-  right: 28px;
+  top: 44px;
+  right: 12px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 6px;
   max-width: calc(100vw - 32px);
 
   /* A 340px min-width toast pinned 28px from the right ran off the side of any
      phone narrower than ~370px, where overflow-x:hidden then clipped it. */
   @media (max-width: 520px) {
-    top: 72px;
+    top: 44px;
     left: 12px;
     right: 12px;
     max-width: none;
-    gap: 10px;
+    gap: 6px;
   }
 `;
 
 export const ToastContainer = styled.div<{ $visible: boolean; $leaving: boolean }>`
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  min-width: min(340px, 100%);
-  max-width: 440px;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+  background: var(--bg-card);
+  border-left: 3px solid var(--border-strong);
+  box-shadow: 0 0 0 1px #adadad, 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-radius: 0;
+  min-width: min(280px, 100%);
+  max-width: 360px;
   transform: translateX(${(p) => (p.$leaving ? "120%" : "0")});
   opacity: ${(p) => (p.$visible ? 1 : 0)};
   position: relative;
@@ -956,18 +902,11 @@ export const ToastContainer = styled.div<{ $visible: boolean; $leaving: boolean 
     min-width: 0;
     max-width: none;
     width: 100%;
-    padding: 14px 16px;
-    gap: 12px;
   }
 `;
 
 export const ToastIconWrapper = styled.div`
-  width: 44px;
-  height: 44px;
-  border-radius: 3px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
 `;
 
@@ -977,15 +916,15 @@ export const ToastContent = styled.div`
 `;
 
 export const ToastTitle = styled.div`
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
 `;
 
 export const ToastDescription = styled.div`
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 3px;
+  margin-top: 1px;
 `;
 
 export const ToastClose = styled.button`
@@ -993,32 +932,14 @@ export const ToastClose = styled.button`
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 8px;
-  border-radius: 3px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 
   &:hover {
-    background: var(--bg-glass);
-    color: var(--text-primary);
-  }
-`;
-
-export const ToastProgress = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-
-  @keyframes toastProgress {
-    from {
-      width: 100%;
-    }
-    to {
-      width: 0%;
-    }
+    background: #e5e5e5;
   }
 `;
 
@@ -1027,7 +948,7 @@ export const SkipToContent = styled.a`
   top: -40px;
   left: 0;
   background: var(--accent-primary);
-  color: white;
+  color: #fff;
   padding: 8px 16px;
   z-index: 9999;
   text-decoration: none;

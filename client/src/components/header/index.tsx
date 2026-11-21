@@ -1,11 +1,8 @@
 import { Link } from "react-router-dom";
 import styled from "styled-components";
-import { Github, Sun, Moon } from "lucide-react";
-import { useTheme } from "../../contexts/theme";
+import { Github } from "lucide-react";
 
 export const Header = () => {
-  const { theme, toggleTheme } = useTheme();
-
   return (
     <HeaderContainer>
       <LogoLink to="/">
@@ -17,15 +14,6 @@ export const Header = () => {
         <LogoText>ThrowMyFile</LogoText>
       </LogoLink>
       <NavActions aria-label="Main navigation">
-        <NavButton
-          onClick={toggleTheme}
-          title={
-            theme === "light" ? "Switch to dark mode" : "Switch to light mode"
-          }
-          aria-label="Toggle theme"
-        >
-          {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-        </NavButton>
         <NavAnchor
           href="https://github.com/n3d06/throw-files"
           target="_blank"
@@ -33,7 +21,7 @@ export const Header = () => {
           title="View Source on GitHub"
           aria-label="View Source on GitHub"
         >
-          <Github size={17} />
+          <Github size={15} />
         </NavAnchor>
       </NavActions>
     </HeaderContainer>
@@ -49,24 +37,24 @@ const HeaderContainer = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
-  height: 56px;
-  background: var(--bg-secondary);
+  padding: 0 0 0 10px;
+  height: 32px;
+  background: var(--w-title);
   border-bottom: 1px solid var(--border-subtle);
 `;
 
 const LogoLink = styled(Link)`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   text-decoration: none;
 `;
 
 const LogoMark = styled.div`
-  width: 32px;
-  height: 32px;
-  background: var(--accent-gradient);
-  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,11 +63,11 @@ const LogoMark = styled.div`
 
 const UploadIcon = ({ children }: { children: React.ReactNode }) => (
   <svg
-    width="16"
-    height="16"
+    width="14"
+    height="14"
     viewBox="0 0 24 24"
     fill="none"
-    stroke="white"
+    stroke="#0078d7"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -89,11 +77,10 @@ const UploadIcon = ({ children }: { children: React.ReactNode }) => (
 );
 
 const LogoText = styled.span`
-  font-family: "Inter", sans-serif;
   font-weight: 700;
-  font-size: 16px;
-  color: var(--text-primary);
-  letter-spacing: -0.3px;
+  font-size: 13px;
+  color: var(--title-fg);
+  font-weight: 400;
 `;
 
 const NavActions = styled.nav`
@@ -106,24 +93,21 @@ const navItemStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 3px;
-  color: var(--text-secondary);
+  width: 32px;
+  height: 28px;
+  border-radius: 0;
+  color: var(--text-primary);
   font-size: 17px;
   background: transparent;
   cursor: pointer;
   border: none;
 
   &:hover {
-    color: var(--text-primary);
-    background: var(--bg-glass);
+    background: #e5e5e5;
   }
+
 `;
 
 const NavAnchor = styled.a`
-  ${navItemStyles}
-`;
-const NavButton = styled.button`
   ${navItemStyles}
 `;
