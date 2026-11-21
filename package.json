@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "npm run dev --prefix client",
     "dev:worker": "npx wrangler dev",
-    "build": "npm install --prefix client && npm run build --prefix client",
+    "build": "npm ci --prefix client && npm run build --prefix client",
     "test": "npm run test --prefix client",
     "typecheck": "tsc --noEmit && npm run typecheck --prefix client",
     "deploy": "npx wrangler deploy"
