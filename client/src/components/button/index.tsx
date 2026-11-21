@@ -58,8 +58,8 @@ const Spin = styled.span`
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid #bcbcbc;
-  border-top-color: var(--text-primary);
+  border: 2px solid currentColor;
+  border-top-color: transparent;
   border-radius: 50%;
   animation: ${spin} 0.6s linear infinite;
   flex-shrink: 0;
@@ -76,27 +76,39 @@ type Variant = ButtonProps["variant"];
 
 const sizeStyles: Record<Size, ReturnType<typeof css>> = {
   small: css`
-    padding: 0 10px;
-    font-size: 12px;
-    height: 24px;
+    padding: 0 12px;
+    font-size: 13px;
+    height: 30px;
   `,
   middle: css`
-    padding: 0 14px;
-    font-size: 13px;
-    height: 28px;
+    padding: 0 16px;
+    font-size: 14px;
+    height: 36px;
   `,
   large: css`
-    padding: 0 20px;
-    font-size: 14px;
-    height: 34px;
+    padding: 0 22px;
+    font-size: 15px;
+    height: 44px;
   `,
 };
 
 const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
   primary: css`
-    font-weight: 700;
-    /* Default button: blue frame. */
-    box-shadow: inset 0 0 0 2px var(--accent);
+    background: var(--accent);
+    color: #fff;
+    box-shadow: none;
+    font-weight: 500;
+
+    &&:hover:not(:disabled) {
+      background: var(--accent-hover);
+      box-shadow: none;
+    }
+
+    &&:active:not(:disabled) {
+      background: var(--accent-hover);
+      box-shadow: none;
+      transform: scale(0.97);
+    }
   `,
   secondary: css``,
   danger: css`
@@ -126,7 +138,9 @@ const Btn = styled.button<{
   white-space: nowrap;
   box-sizing: border-box;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
   background: var(--w-face);
   color: var(--text-primary);
   box-shadow: var(--bevel-out);
@@ -142,13 +156,12 @@ const Btn = styled.button<{
   &:active:not(:disabled) {
     background: var(--press-bg);
     box-shadow: var(--press-shadow);
+    transform: scale(0.97);
   }
 
   &:disabled {
-    color: #a0a0a0;
-    background: #cccccc;
-    box-shadow: inset 0 0 0 1px #bfbfbf;
-    cursor: default;
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   ${(p) =>
@@ -156,9 +169,4 @@ const Btn = styled.button<{
     css`
       cursor: wait;
     `}
-
-  &:focus-visible {
-    outline: 1px dotted var(--text-primary);
-    outline-offset: -4px;
-  }
 `;

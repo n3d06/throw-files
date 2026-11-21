@@ -37,13 +37,13 @@ const Tip = styled.span`
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) translateY(0);
-  background: #f2f2f2;
-  border: 1px solid #767676;
-  color: #575757;
+  background: #29261b;
+  border: none;
+  color: #faf9f5;
   font-size: 12px;
   line-height: 1.5;
-  padding: 2px 6px;
-  border-radius: 0;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
   white-space: pre-wrap;
   max-width: 260px;
   text-align: center;

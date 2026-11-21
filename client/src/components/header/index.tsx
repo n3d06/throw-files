@@ -21,7 +21,7 @@ export const Header = () => {
           title="View Source on GitHub"
           aria-label="View Source on GitHub"
         >
-          <Github size={15} />
+          <Github size={16} />
         </NavAnchor>
       </NavActions>
     </HeaderContainer>
@@ -37,10 +37,9 @@ const HeaderContainer = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 0 10px;
-  height: 32px;
-  background: var(--w-title);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 12px 0 16px;
+  height: 48px;
+  background: var(--bg-primary);
 `;
 
 const LogoLink = styled(Link)`
@@ -51,8 +50,8 @@ const LogoLink = styled(Link)`
 `;
 
 const LogoMark = styled.div`
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   background: transparent;
   border-radius: 0;
   display: flex;
@@ -63,11 +62,11 @@ const LogoMark = styled.div`
 
 const UploadIcon = ({ children }: { children: React.ReactNode }) => (
   <svg
-    width="14"
-    height="14"
+    width="18"
+    height="18"
     viewBox="0 0 24 24"
     fill="none"
-    stroke="#0078d7"
+    stroke="#c0392b"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -77,10 +76,9 @@ const UploadIcon = ({ children }: { children: React.ReactNode }) => (
 );
 
 const LogoText = styled.span`
-  font-weight: 700;
-  font-size: 13px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
   color: var(--title-fg);
-  font-weight: 400;
 `;
 
 const NavActions = styled.nav`
@@ -93,10 +91,10 @@ const navItemStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 28px;
-  border-radius: 0;
-  color: var(--text-primary);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--text-secondary);
   font-size: 17px;
   background: transparent;
   cursor: pointer;

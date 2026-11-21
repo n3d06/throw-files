@@ -151,12 +151,12 @@ const TOAST_ICONS: Record<ToastVariant, JSX.Element> = {
   info: <Info size={16} />,
 };
 
-// Flat toasts: the variant shows in the left bar and icon colour only.
+// Snackbar: dark surface, so the variant colours are the light tints.
 const TOAST_STYLES: Record<ToastVariant, string> = {
-  success: "var(--success)",
-  error: "var(--danger)",
-  warning: "var(--warning)",
-  info: "var(--accent-primary)",
+  success: "#8fd19e",
+  error: "#ff9a8d",
+  warning: "#f0c36a",
+  info: "#f3b0a6",
 };
 
 const Toast = ({
@@ -196,14 +196,14 @@ const Toast = ({
     <S.ToastContainer
       $visible={visible}
       $leaving={leaving}
-      style={{ borderLeftColor: color }}
     >
       <S.ToastIconWrapper style={{ color }}>
         {TOAST_ICONS[toast.type]}
       </S.ToastIconWrapper>
       <S.ToastContent>
-        <S.ToastTitle>{toast.title}</S.ToastTitle>
-        <S.ToastDescription>{toast.description}</S.ToastDescription>
+        <S.ToastText title={toast.description || toast.title}>
+          {toast.description || toast.title}
+        </S.ToastText>
       </S.ToastContent>
       <S.ToastClose onClick={() => setLeaving(true)} aria-label="Dismiss">
         <X size={12} />
@@ -344,7 +344,7 @@ const HistoryModal = ({
                   </S.StatusBadge>
                   <S.FileNameWrapper>
                     <S.FileNameText title={file.name}>
-                      {trimFileName(file.name, 30)}
+                      {trimFileName(file.name, 36)}
                     </S.FileNameText>
                     {file.compressed && <S.ZipBadge>ZIP</S.ZipBadge>}
                   </S.FileNameWrapper>
@@ -1027,11 +1027,8 @@ export const Home = memo(() => {
       />
 
       <S.MainContainer id="main-content" role="main" tabIndex={-1}>
-        <S.Dashboard>
-          <S.Row $cols={3}>
-            <S.Panel aria-label="Channel">
-              <S.PanelHead><S.PanelTitle>Channel</S.PanelTitle></S.PanelHead>
-              <S.PanelBody>
+        <S.Panel>
+          <S.PanelBody>
             <S.ChannelBox>
               <S.ChannelCode aria-label={`Channel code ${joinedChannel ?? "none"}`}>
                 {joinedChannel ?? "······"}
@@ -1060,12 +1057,6 @@ export const Home = memo(() => {
                 </S.IconButton>
               </S.ActionButtons>
             </S.ChannelBox>
-              </S.PanelBody>
-            </S.Panel>
-
-            <S.Panel aria-label="Join a channel">
-              <S.PanelHead><S.PanelTitle>Join</S.PanelTitle></S.PanelHead>
-              <S.PanelBody>
           <S.JoinSection>
             <S.InputWrapper>
               <S.StyledInput
@@ -1092,7 +1083,7 @@ export const Home = memo(() => {
             <Button
               variant="primary"
               onClick={() => joinChannel(code)}
-              style={{ height: 32 }}
+              style={{ height: 36 }}
               disabled={
                 !isValidChannelCode(code) ||
                 transferring ||
@@ -1103,12 +1094,7 @@ export const Home = memo(() => {
               Join
             </Button>
           </S.JoinSection>
-              </S.PanelBody>
-            </S.Panel>
-
-            <S.Panel aria-label="Status">
-              <S.PanelHead><S.PanelTitle>Status</S.PanelTitle></S.PanelHead>
-              <S.PanelBody>
+                <S.StatusRow>
                 <S.StatusLine $state={connectionState} role="status" aria-live="polite">
                   {connectionState === "open" ? (
                     <Wifi size={14} aria-hidden="true" />
@@ -1127,17 +1113,7 @@ export const Home = memo(() => {
                     on this channel
                   </span>
                 </S.DeviceCount>
-                <S.Note>
-                  Files are relayed over TLS and never stored on the server.
-                </S.Note>
-              </S.PanelBody>
-            </S.Panel>
-          </S.Row>
-
-          <S.Row $cols={2}>
-            <S.Panel aria-label="Send files">
-              <S.PanelHead><S.PanelTitle>Send</S.PanelTitle></S.PanelHead>
-              <S.PanelBody>
+                </S.StatusRow>
           <S.FileSection
             $dragging={isDragging}
             onDragEnter={handleDragEnter}
@@ -1182,12 +1158,6 @@ export const Home = memo(() => {
               </S.SendButtonWrapper>
             )}
           </S.FileSection>
-              </S.PanelBody>
-            </S.Panel>
-
-            <S.Panel aria-label="Transfers">
-              <S.PanelHead><S.PanelTitle>Transfers</S.PanelTitle></S.PanelHead>
-              <S.PanelBody>
           {transfers.length > 0 && (
             <S.TransferList>
               {transfers.map((transfer) => {
@@ -1284,23 +1254,7 @@ export const Home = memo(() => {
               ))}
             </S.ReadyList>
           )}
-                {transfers.length === 0 && readyFiles.length === 0 && (
-                  <S.EmptyHint>No active transfers</S.EmptyHint>
-                )}
-              </S.PanelBody>
-            </S.Panel>
-          </S.Row>
-
-          <S.Row $cols={1}>
-            <S.Panel aria-label="Recent transfers">
-              <S.PanelHead>
-                <S.PanelTitle>Recent transfers</S.PanelTitle>
-                <S.HistoryStats>{history.length} total</S.HistoryStats>
-              </S.PanelHead>
-              <S.PanelBody>
-                {recentHistory.length === 0 ? (
-                  <S.EmptyHint>No transfers yet</S.EmptyHint>
-                ) : (
+                {recentHistory.length > 0 && (
                   <div>
                     {recentHistory.map((file) => {
                       const type =
@@ -1337,10 +1291,8 @@ export const Home = memo(() => {
                       : "View all history"}
                   </S.ViewAllButton>
                 )}
-              </S.PanelBody>
-            </S.Panel>
-          </S.Row>
-        </S.Dashboard>
+        </S.PanelBody>
+</S.Panel>
 
         <S.Footer>
           <S.FooterLinks>

@@ -1,6 +1,16 @@
 import { ReactNode, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
+
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const popIn = keyframes`
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+`;
 
 interface ModalProps {
   visible: boolean;
@@ -102,7 +112,7 @@ export const Modal = ({
           <Header>
             <Title id="modal-title">{title}</Title>
             <CloseBtn onClick={onClose} aria-label="Close">
-              <X size={14} />
+              <X size={16} />
             </CloseBtn>
           </Header>
         )}
@@ -115,6 +125,7 @@ export const Modal = ({
 };
 
 const Overlay = styled.div`
+  animation: ${fadeIn} 0.18s ease both;
   position: fixed;
   inset: 0;
   z-index: 1050;
@@ -122,18 +133,19 @@ const Overlay = styled.div`
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(41, 38, 27, 0.35);
 
   @supports not (backdrop-filter: blur(8px)) {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(41, 38, 27, 0.7);
   }
 
 `;
 
 const Box = styled.div`
+  animation: ${popIn} 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   background: var(--bg-card);
-  box-shadow: 0 0 0 1px #888, 0 8px 28px rgba(0, 0, 0, 0.35);
-  border-radius: 0;
+  box-shadow: 0 8px 32px rgba(41, 38, 27, 0.18), inset 0 0 0 1px var(--border-medium);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
   display: flex;
@@ -145,15 +157,15 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 0 12px;
-  height: 32px;
-  background: var(--w-title);
+  padding: 8px 8px 0 20px;
+  min-height: 48px;
   flex-shrink: 0;
 `;
 
 const Title = styled.div`
+  font-family: Georgia, "Times New Roman", serif;
   font-weight: 400;
-  font-size: 13px;
+  font-size: 18px;
   color: var(--title-fg);
   display: flex;
   align-items: center;
@@ -161,34 +173,38 @@ const Title = styled.div`
 `;
 
 const CloseBtn = styled.button`
+  transition: background 0.15s, transform 0.12s;
   background: transparent;
   border: none;
   cursor: pointer;
   color: var(--text-primary);
   font-size: 14px;
-  width: 46px;
+  width: 32px;
   height: 32px;
-  border-radius: 0;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    background: #e81123;
-    color: #fff;
+    background: var(--hover-bg);
+  }
+
+  &:active {
+    transform: scale(0.9);
   }
 
 `;
 
 const Body = styled.div`
-  padding: 16px;
+  padding: 12px 20px 20px;
   color: var(--text-primary);
   overflow-y: auto;
   flex: 1;
 `;
 
 const Footer = styled.div`
-  padding: 12px 16px;
+  padding: 0 20px 20px;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -202,7 +218,7 @@ const X = ({ size }: { size: number }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="1.5"
+    strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
   >

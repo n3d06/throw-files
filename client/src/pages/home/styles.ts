@@ -3,6 +3,11 @@
 // presentation interleaved.
 import styled, { css, keyframes } from "styled-components";
 import { Input } from "../../components";
+export const fadeUp = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
 export const bounce = keyframes`
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
@@ -16,57 +21,39 @@ export const HomeComponent = styled.div`
 `;
 
 export const MainContainer = styled.div`
-  max-width: 1100px;
+  max-width: 620px;
   margin: 0 auto;
-  padding: 46px 12px 24px;
+  padding: 72px 16px 24px;
 
   &:focus:not(:focus-visible) {
     outline: none;
   }
 `;
 
-export const Dashboard = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-export const Row = styled.div<{ $cols: number }>`
-  display: grid;
-  grid-template-columns: repeat(${(p) => p.$cols}, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
-
-  @media (max-width: 860px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-`;
-
 export const Panel = styled.section`
+  animation: ${fadeUp} 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   display: flex;
   flex-direction: column;
   min-width: 0;
   background: var(--bg-card);
   box-shadow: var(--bevel-etch);
-`;
-
-export const PanelHead = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 12px;
-  min-height: 34px;
-  background: var(--w-title);
-  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
 `;
 
 export const PanelBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   flex: 1;
-  padding: 12px;
+  padding: 20px;
+`;
+
+export const StatusRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
 `;
 
 export const StatusLine = styled.div<{ $state: string }>`
@@ -87,18 +74,6 @@ export const StatusLine = styled.div<{ $state: string }>`
   }
 `;
 
-export const EmptyHint = styled.p`
-  margin: auto;
-  font-size: 13px;
-  color: var(--text-muted);
-`;
-export const PanelTitle = styled.h2`
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--title-fg);
-  margin: 0;
-`;
-
 export const DeviceCount = styled.div`
   display: flex;
   align-items: center;
@@ -111,18 +86,12 @@ export const DeviceCount = styled.div`
   }
 `;
 
-export const Note = styled.p`
-  margin-top: auto;
-  font-size: 12px;
-  color: var(--text-muted);
-`;
-
 export const ChannelBox = styled.div<{ $focused?: boolean }>`
   background: var(--w-field);
   box-shadow: var(--bevel-in);
   outline: ${(p) => (p.$focused ? "1px solid var(--accent)" : "none")};
   outline-offset: -1px;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   padding: 10px 12px;
   display: flex;
   align-items: center;
@@ -138,9 +107,9 @@ export const ChannelBox = styled.div<{ $focused?: boolean }>`
 `;
 
 export const ChannelCode = styled.span`
-  font-family: "Courier New", monospace;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 3px;
   color: var(--accent-primary);
   flex: 1;
@@ -165,12 +134,14 @@ export const ActionButtons = styled.div`
 `;
 
 export const IconButton = styled.button`
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  border-radius: 50%;
   background: var(--w-face);
   border: none;
   box-shadow: var(--bevel-out);
   color: var(--text-primary);
-  min-width: 32px;
-  height: 32px;
+  min-width: 36px;
+  height: 36px;
   margin: 0;
   display: flex;
   align-items: center;
@@ -185,6 +156,7 @@ export const IconButton = styled.button`
   &:active {
     background: var(--press-bg);
     box-shadow: var(--press-shadow);
+    transform: scale(0.92);
   }
 `;
 
@@ -219,20 +191,12 @@ export const JoinSection = styled.div`
 `;
 
 export const StyledInput = styled(Input)`
-  height: 32px;
+  height: 36px;
   font-size: 15px;
   letter-spacing: 2px;
-  border-radius: 0;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
   font-weight: 600;
-
-  &:hover {
-    box-shadow: inset 0 0 0 1px #171717;
-  }
-
-  &:focus {
-    box-shadow: inset 0 0 0 1px var(--accent);
-  }
 
   @media (max-width: 480px) {
     height: 36px;
@@ -248,6 +212,7 @@ export const TransferList = styled.div`
 `;
 
 export const TransferItem = styled.div`
+  animation: ${fadeUp} 0.3s ease both;
   box-shadow: var(--bevel-etch);
   padding: 12px 14px;
 `;
@@ -275,8 +240,7 @@ export const FileIconWrapper = styled.div<{ $receiving?: boolean }>`
 `;
 
 export const FileNameText = styled.span`
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 13px;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -287,9 +251,9 @@ export const ZipBadge = styled.span`
   font-size: 9px;
   font-weight: 700;
   color: var(--accent-tertiary);
-  box-shadow: var(--bevel-out);
-  padding: 2px 6px;
-  border-radius: 0;
+  background: var(--w-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
   flex-shrink: 0;
 `;
@@ -309,7 +273,7 @@ export const TransferStatus = styled.span<{ $receiving?: boolean }>`
 export const StatusDot = styled.span<{ $receiving?: boolean }>`
   width: 8px;
   height: 8px;
-  border-radius: 0;
+  border-radius: 50%;
   background: ${(p) =>
     p.$receiving ? "var(--accent-sky)" : "var(--accent-emerald)"};
 `;
@@ -317,16 +281,17 @@ export const StatusDot = styled.span<{ $receiving?: boolean }>`
 export const ProgressTrack = styled.div`
   height: 8px;
   background: var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 12px;
   position: relative;
 `;
 
 export const ProgressFill = styled.div`
+  transition: width 0.2s linear;
   height: 100%;
   background: var(--accent-gradient);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   /* Progress arrives once per chunk — many times a second. A 0.3s ease made the
      bar visibly lag behind the real byte count. */
   position: relative;
@@ -349,24 +314,29 @@ export const ProgressSize = styled.span`
 `;
 
 export const FileSection = styled.div<{ $dragging?: boolean }>`
+  transition: background 0.15s, border-color 0.15s;
   display: flex;
   flex-direction: column;
   align-items: center;
   flex: 1;
   justify-content: center;
-  min-height: 200px;
-  padding: 32px 16px;
-  border: 1px dotted var(--text-primary);
-  border-radius: 0;
+  min-height: 150px;
+  padding: 20px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
 
   ${(p) =>
     p.$dragging &&
     css`
-      background: var(--w-light);
+      background: #fdf1ef;
+      border-color: var(--accent);
+      border-style: solid;
     `}
 `;
 
 export const BannerAction = styled.button`
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  border-radius: var(--radius-pill);
   background: var(--w-face);
   box-shadow: var(--bevel-out);
   border: none;
@@ -383,10 +353,13 @@ export const BannerAction = styled.button`
   &:active {
     background: var(--press-bg);
     box-shadow: var(--press-shadow);
+    transform: scale(0.96);
   }
 `;
 
 export const CancelButton = styled.button`
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  border-radius: 50%;
   background: var(--w-face);
   box-shadow: var(--bevel-out);
   border: none;
@@ -407,6 +380,7 @@ export const CancelButton = styled.button`
   &:active {
     background: var(--press-bg);
     box-shadow: var(--press-shadow);
+    transform: scale(0.92);
   }
 `;
 
@@ -418,13 +392,14 @@ export const ReadyList = styled.div`
 `;
 
 export const ReadyItem = styled.div`
+  animation: ${fadeUp} 0.3s ease both;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 8px 10px;
   box-shadow: var(--bevel-etch);
-  border-radius: 0;
+  border-radius: var(--radius-md);
 
   @media (max-width: 480px) {
     flex-direction: column;
@@ -459,8 +434,8 @@ export const LoadingDotsWrapper = styled.div`
 export const LoadingDot = styled.div`
   width: 12px;
   height: 12px;
-  border-radius: 0;
-  background: #0078d7;
+  border-radius: 50%;
+  background: var(--accent);
   animation: ${bounce} 1.4s ease-in-out infinite both;
 
   &:nth-of-type(1) {
@@ -476,39 +451,35 @@ export const SendButtonWrapper = styled.div`
 `;
 
 export const SendButton = styled.button`
-  background: var(--w-face);
-  color: var(--text-primary);
+  transition: background 0.15s, transform 0.12s;
+  background: var(--accent);
+  color: #fff;
   border: none;
-  box-shadow: inset 0 0 0 2px var(--accent);
-  border-radius: 0;
-  padding: 6px 24px;
-  font-size: 14px;
-  font-weight: 700;
+  border-radius: var(--radius-pill);
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
 
   &:hover:not(:disabled) {
-    background: var(--hover-bg);
-    box-shadow: inset 0 0 0 2px var(--accent);
+    background: var(--accent-hover);
   }
 
   &:active:not(:disabled) {
-    background: var(--press-bg);
-    box-shadow: inset 0 0 0 2px #005499;
+    transform: scale(0.97);
   }
 
   &:disabled {
-    color: #a0a0a0;
-    background: #cccccc;
-    box-shadow: inset 0 0 0 1px #bfbfbf;
-    cursor: default;
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   &:focus-visible {
-    outline: 1px dotted var(--text-primary);
-    outline-offset: -5px;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   @media (max-width: 480px) {
@@ -516,7 +487,7 @@ export const SendButton = styled.button`
     padding: 10px 24px;
     font-size: 15px;
     gap: 10px;
-    border-radius: 0;
+    border-radius: var(--radius-pill);
   }
 `;
 
@@ -548,17 +519,8 @@ export const PasteText = styled.span`
   }
 `;
 
-export const HistoryStats = styled.span`
-  box-shadow: var(--bevel-in);
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 600;
-  padding: 0 8px;
-  border-radius: 0;
-`;
-
 export const InlineHistoryItem = styled.div`
+  animation: ${fadeUp} 0.3s ease both;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -633,6 +595,8 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
 `;
 
 export const ViewAllButton = styled.button`
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  border-radius: var(--radius-pill);
   background: var(--w-face);
   box-shadow: var(--bevel-out);
   border: none;
@@ -650,11 +614,12 @@ export const ViewAllButton = styled.button`
   &:active {
     background: var(--press-bg);
     box-shadow: var(--press-shadow);
+    transform: scale(0.98);
   }
 `;
 
 export const Footer = styled.div`
-  margin-top: 40px;
+  margin-top: 16px;
   text-align: center;
 `;
 
@@ -697,9 +662,9 @@ export const FooterLink = styled.a`
   }
 
   &:focus-visible {
-    outline: 1px dotted var(--text-primary);
-    outline-offset: 1px;
-    border-radius: 0;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
 `;
 
@@ -717,12 +682,8 @@ export const HistoryWrapper = styled.div`
 `;
 
 export const CountBadge = styled.span`
-  box-shadow: var(--bevel-in);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: 0;
+  color: var(--text-muted);
+  font-size: 12px;
 `;
 
 export const ModalFooter = styled.div`
@@ -734,40 +695,37 @@ export const ModalFooter = styled.div`
 export const TabBar = styled.div`
   display: flex;
   gap: 0;
-  box-shadow: 0 1px var(--w-hi);
-  margin-bottom: 8px;
+  box-shadow: 0 1px var(--border-subtle);
+  margin-bottom: 4px;
 `;
 
 export const TabButton = styled.button<{ $active: boolean }>`
-  flex: 1;
-  padding: 10px 14px;
+  transition: box-shadow 0.2s, color 0.15s;
+  padding: 6px 16px;
   border: none;
   box-shadow: ${(p) => (p.$active ? "inset 0 -2px var(--accent)" : "none")};
   background: transparent;
   color: ${(p) => (p.$active ? "var(--text-primary)" : "var(--text-secondary)")};
   cursor: pointer;
   font-size: 13px;
-  font-weight: ${(p) => (p.$active ? "600" : "500")};
-  border-radius: 0;
+  font-weight: ${(p) => (p.$active ? "600" : "400")};
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
 
   
 `;
 
 export const TabCount = styled.span<{ $active: boolean }>`
-  box-shadow: var(--bevel-in);
-  padding: 0 7px;
-  border-radius: 0;
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 12px;
 `;
 
 export const EmptyState = styled.div`
   text-align: center;
-  padding: 64px 24px;
+  padding: 32px 16px;
 `;
 
 export const EmptyIconWrapper = styled.div`
@@ -775,7 +733,7 @@ export const EmptyIconWrapper = styled.div`
   height: 56px;
   margin: 0 auto 16px;
   box-shadow: var(--bevel-in);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -800,11 +758,12 @@ export const HistoryList = styled.div`
 `;
 
 export const HistoryItem = styled.div`
+  animation: ${fadeUp} 0.3s ease both;
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 18px;
+  gap: 12px;
   align-items: center;
-  padding: 12px 8px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--border-subtle);
 
   &:last-child {
@@ -819,14 +778,14 @@ export const HistoryItem = styled.div`
 export const HistoryItemLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   min-width: 0;
 `;
 
 export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
-  width: 32px;
-  height: 32px;
-  border-radius: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-md);
     color: ${(p) =>
     p.$type === "sent" ? "var(--success)" : "var(--accent-primary)"};
   display: flex;
@@ -837,9 +796,8 @@ export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
 
 export const HistoryItemRight = styled.div`
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
+  align-items: center;
+  gap: 10px;
 `;
 
 export const MetaText = styled.span`
@@ -856,53 +814,45 @@ export const TypeBadge = styled.span<{ $type: "sent" | "received" }>`
 `;
 
 export const FileSizeText = styled.span`
-  font-size: 14px;
+  font-size: 12px;
+  min-width: 52px;
+  text-align: right;
   color: var(--text-muted);
 `;
 
 // Toast Components
 export const ToastContainerWrapper = styled.div`
   position: fixed;
-  top: 44px;
-  right: 12px;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
   max-width: calc(100vw - 32px);
-
-  /* A 340px min-width toast pinned 28px from the right ran off the side of any
-     phone narrower than ~370px, where overflow-x:hidden then clipped it. */
-  @media (max-width: 520px) {
-    top: 44px;
-    left: 12px;
-    right: 12px;
-    max-width: none;
-    gap: 6px;
-  }
+  pointer-events: none;
 `;
 
 export const ToastContainer = styled.div<{ $visible: boolean; $leaving: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 8px 8px 12px;
-  background: var(--bg-card);
-  border-left: 3px solid var(--border-strong);
-  box-shadow: 0 0 0 1px #adadad, 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-radius: 0;
-  min-width: min(280px, 100%);
-  max-width: 360px;
-  transform: translateX(${(p) => (p.$leaving ? "120%" : "0")});
-  opacity: ${(p) => (p.$visible ? 1 : 0)};
-  position: relative;
-  overflow: hidden;
-
-  @media (max-width: 520px) {
-    min-width: 0;
-    max-width: none;
-    width: 100%;
-  }
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  background: #29261b;
+  color: #faf9f5;
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 24px rgba(41, 38, 27, 0.3);
+  min-width: min(200px, 100%);
+  max-width: 420px;
+  pointer-events: auto;
+  transition:
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.28s ease;
+  transform: translateY(${(p) => (p.$visible && !p.$leaving ? "0" : "16px")});
+  opacity: ${(p) => (p.$visible && !p.$leaving ? 1 : 0)};
 `;
 
 export const ToastIconWrapper = styled.div`
@@ -915,22 +865,20 @@ export const ToastContent = styled.div`
   min-width: 0;
 `;
 
-export const ToastTitle = styled.div`
+export const ToastText = styled.div`
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-`;
-
-export const ToastDescription = styled.div`
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 1px;
+  color: #faf9f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 export const ToastClose = styled.button`
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  border-radius: 50%;
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: #c9c5b3;
   cursor: pointer;
   padding: 6px;
   display: flex;
@@ -939,7 +887,7 @@ export const ToastClose = styled.button`
   flex-shrink: 0;
 
   &:hover {
-    background: #e5e5e5;
+    background: rgba(250, 249, 245, 0.12);
   }
 `;
 
@@ -953,7 +901,7 @@ export const SkipToContent = styled.a`
   z-index: 9999;
   text-decoration: none;
   font-weight: 600;
-  border-radius: 0 0 8px 0;
+  border-radius: 0 0 var(--radius-md) 0;
 
   &:focus {
     top: 0;

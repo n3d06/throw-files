@@ -15,9 +15,9 @@ const StyledInput = styled.input`
   border: none;
   box-shadow: var(--bevel-in);
   color: var(--text-primary);
-  border-radius: 0;
+  border-radius: var(--radius-pill);
   font-size: 13px;
-  padding: 0 6px;
+  padding: 0 12px;
   outline: none;
 
   &::placeholder {
@@ -25,10 +25,10 @@ const StyledInput = styled.input`
   }
 
   &:hover {
-    box-shadow: inset 0 0 0 1px #171717;
+    box-shadow: var(--hover-shadow);
   }
 
   &:focus {
-    box-shadow: inset 0 0 0 1px var(--accent);
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
 `;

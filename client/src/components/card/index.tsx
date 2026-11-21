@@ -27,7 +27,6 @@ export const CardHeader = ({
   <div
     style={{
       padding: "8px 16px",
-      background: "var(--w-title)",
       borderBottom: "1px solid var(--border-subtle)",
       fontWeight: 600,
       ...style,
@@ -39,5 +38,6 @@ export const CardHeader = ({
 const GlassCard = styled.div`
   background: var(--bg-card);
   box-shadow: var(--bevel-etch);
+  border-radius: var(--radius-lg);
   position: relative;
 `;
