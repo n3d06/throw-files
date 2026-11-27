@@ -1,8 +1,18 @@
 export { ThrowFilesChannel } from "./channel";
 
-const ALLOWED_ORIGINS = new Set([
-  "https://throw-files.n3d.site",
-  "https://throw-files.ngduy10102006.workers.dev",
+/** The one domain the site is served from. */
+const CANONICAL_ORIGIN = "https://tf.n3d.site";
+
+const ALLOWED_ORIGINS = new Set([CANONICAL_ORIGIN]);
+
+/**
+ * Former homes of the site. They stay attached to this Worker only so old
+ * links keep working: every request is permanently redirected to the same
+ * path and query on CANONICAL_ORIGIN, so `?channel=` survives the move.
+ */
+const LEGACY_HOSTS = new Set([
+  "throw-files.n3d.site",
+  "throw-files.ngduy10102006.workers.dev",
 ]);
 
 // Channel codes are fixed-length; see client/src/utils/channel.ts.
@@ -40,7 +50,7 @@ function corsHeaders(request: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": isAllowedOrigin(origin)
       ? (origin as string)
-      : [...ALLOWED_ORIGINS][0],
+      : CANONICAL_ORIGIN,
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": requested ?? "Content-Type",
@@ -52,6 +62,16 @@ function corsHeaders(request: Request): Record<string, string> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // 308 keeps the method; browsers re-request on the new domain. A socket
+    // from a page still open on an old domain cannot follow it and fails,
+    // which the client reports as a lost connection until the user reloads.
+    if (LEGACY_HOSTS.has(url.hostname)) {
+      return Response.redirect(
+        `${CANONICAL_ORIGIN}${url.pathname}${url.search}`,
+        308,
+      );
+    }
 
     // CORS preflight — handled at the edge, no DO wakeup needed.
     if (request.method === "OPTIONS") {

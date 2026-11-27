@@ -2,7 +2,7 @@
 
 ## What this project is
 
-A file-sharing SPA at [throw-files.n3d.site](https://throw-files.n3d.site). Files are
+A file-sharing SPA at [tf.n3d.site](https://tf.n3d.site). Files are
 chunked in the browser and **relayed** between clients through a Cloudflare
 Worker + Durable Object — nothing is stored, but this is not WebRTC and not
 end-to-end encrypted. Say "relay", not "P2P"; the traffic is decrypted at the
@@ -116,10 +116,11 @@ in `rsbuild.config.js` — not a runtime lookup. Values come from
 
 - One Worker (`throw-files`) serves both the API (Durable Object) and the built
   frontend (`client/build`, via the `[assets]` block in `wrangler.toml`).
-- Custom domain `throw-files.n3d.site` is attached **in the dashboard** (not in
-  `wrangler.toml`); `workers.dev` also works. Every serving origin must be in
-  `ALLOWED_ORIGINS` (`worker/index.ts`) and the CSP `connect-src`
-  (`client/public/_headers`).
+- The only serving domain is `tf.n3d.site` (`CANONICAL_ORIGIN` in
+  `worker/index.ts`, the CSP `connect-src` in `client/public/_headers`), a
+  custom domain attached **in the dashboard** (not in `wrangler.toml`).
+  `throw-files.n3d.site` and `workers.dev` stay attached only to 308-redirect
+  to it (`LEGACY_HOSTS`).
 - CI: Cloudflare Workers Builds (Worker → Settings → Builds) runs
   `npm run build` then `npx wrangler deploy` on every push to `master`. There is
   no GitHub Actions workflow and no test gate, so run `npm test` locally.
