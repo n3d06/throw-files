@@ -1357,7 +1357,6 @@ export const Home = memo(() => {
     if (joinedChannel) socket.setChannel(joinedChannel);
   }, [joinedChannel]);
 
-  const recentHistory = history.slice(0, 3);
   const hasPeer = connectedUsers > 1;
   const canSend = connectionState === "open" && hasPeer && !transferring;
   // Text rides its own control frame, so it can go out mid file transfer.
@@ -1856,42 +1855,10 @@ export const Home = memo(() => {
             </S.ReadyList>
             </S.Section>
           )}
-                {recentHistory.length > 0 && (
-                  <S.Section>
-                    <S.SectionLabel>Recent activity</S.SectionLabel>
-                    {recentHistory.map((file) => {
-                      const type =
-                        file.direction === "send" ? "sent" : "received";
-                      return (
-                        <S.InlineHistoryItem key={file.id}>
-                          <S.InlineLeft>
-                            <S.InlineStatusBadge $type={type}>
-                              {file.direction === "send" ? (
-                                <ArrowUp size={16} />
-                              ) : (
-                                <ArrowDown size={16} />
-                              )}
-                            </S.InlineStatusBadge>
-                            <S.InlineFileName title={file.name}>
-                              {trimFileName(file.name, 40)}
-                            </S.InlineFileName>
-                          </S.InlineLeft>
-                          <S.InlineRight>
-                            <S.InlineTime>{formatTime(file.at)}</S.InlineTime>
-                            <S.InlineTypeBadge $type={type}>
-                              {file.direction === "send" ? "SENT" : "RECV"}
-                            </S.InlineTypeBadge>
-                          </S.InlineRight>
-                        </S.InlineHistoryItem>
-                      );
-                    })}
-                  </S.Section>
-                )}
                 {history.length > 0 && (
                   <S.ViewAllButton onClick={() => setShowHistoryModal(true)}>
-                    {history.length > 3
-                      ? `View all (${history.length})`
-                      : "View all history"}
+                    <History size={18} aria-hidden="true" />
+                    View all history ({history.length})
                   </S.ViewAllButton>
                 )}
         </S.PanelBody>

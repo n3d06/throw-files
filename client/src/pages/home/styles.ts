@@ -1028,38 +1028,7 @@ export const PasteText = styled.span`
 `;
 
 /** MD3 two-line-ish list item: 56dp, leading avatar, state layer on hover. */
-export const InlineHistoryItem = styled.div`
-  animation: ${slideIn} 0.4s ${spring} both;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  min-height: 56px;
-  padding: 8px 16px;
-  border-radius: var(--md-shape-md);
-  transition: background-color 0.15s ${easeOut};
-  ${stateLayer("var(--md-on-surface)")}
 
-  &:nth-of-type(2) {
-    animation-delay: 0.05s;
-  }
-  &:nth-of-type(3) {
-    animation-delay: 0.1s;
-  }
-
-  @media (max-width: 400px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-`;
-
-export const InlineLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-`;
 
 /** Tonal avatar colours: received in primary, sent in secondary. */
 const directionBadge = (type: "sent" | "received") => css`
@@ -1071,36 +1040,9 @@ const directionBadge = (type: "sent" | "received") => css`
     : "var(--md-on-primary-container)"};
 `;
 
-export const InlineStatusBadge = styled.span<{ $type: "sent" | "received" }>`
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  ${(p) => directionBadge(p.$type)}
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`;
 
-export const InlineFileName = styled.span`
-  ${type.bodyLarge}
-  color: var(--md-on-surface);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
 
-export const InlineRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-`;
 
-export const InlineTime = styled.span`
-  ${type.labelSmall}
-  color: var(--md-on-surface-variant);
-`;
 
 const typeTag = css`
   ${type.labelSmall}
@@ -1108,10 +1050,6 @@ const typeTag = css`
   border-radius: var(--md-shape-xs);
 `;
 
-export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
-  ${typeTag}
-  ${(p) => directionBadge(p.$type)}
-`;
 
 /** MD3 outlined button, full width. */
 export const ViewAllButton = styled.button`
@@ -1126,6 +1064,10 @@ export const ViewAllButton = styled.button`
   width: 100%;
   color: var(--md-primary);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 `;
 
 export const Footer = styled.div`
