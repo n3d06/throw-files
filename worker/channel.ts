@@ -146,6 +146,29 @@ export class ThrowFilesChannel {
           ws,
         );
         break;
+      // Consent before data: the sender offers a file, receivers answer, and
+      // chunks only flow after an accept. The relay just forwards the three.
+      case "file-offer":
+        this.broadcast(
+          {
+            type: "file-offer",
+            channel,
+            id: String(msg.id ?? ""),
+            name: String(msg.name ?? "").slice(0, 255),
+            fileType: String(msg.fileType ?? "").slice(0, 255),
+            size: Number(msg.size ?? 0),
+            compressed: Boolean(msg.compressed),
+          },
+          ws,
+        );
+        break;
+      case "file-accept":
+      case "file-decline":
+        this.broadcast(
+          { type: msg.type, channel, id: String(msg.id ?? "") },
+          ws,
+        );
+        break;
       // A text snippet goes out in one control frame — no chunking needed.
       case "text": {
         const text = msg.text;

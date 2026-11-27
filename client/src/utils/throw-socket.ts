@@ -10,7 +10,14 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventHandler = (data?: any) => void;
 
-type OutboundEvent = "file-start" | "file-done" | "file-abort" | "text";
+type OutboundEvent =
+  | "file-offer"
+  | "file-accept"
+  | "file-decline"
+  | "file-start"
+  | "file-done"
+  | "file-abort"
+  | "text";
 
 export type ConnectionState =
   | "idle"
@@ -266,6 +273,22 @@ export class ThrowSocket {
         break;
       case "file-abort":
         this.fire("file-abort", { id: msg.id, name: msg.name });
+        break;
+      case "file-offer":
+        if (msg.channel !== this.channel || typeof msg.id !== "string" || !msg.id)
+          break;
+        this.fire("file-offer", {
+          id: msg.id,
+          name: String(msg.name ?? ""),
+          type: String(msg.fileType ?? ""),
+          size: Number(msg.size ?? 0),
+          compressed: Boolean(msg.compressed),
+        });
+        break;
+      case "file-accept":
+      case "file-decline":
+        if (msg.channel !== this.channel || typeof msg.id !== "string") break;
+        this.fire(msg.type, { id: msg.id });
         break;
       case "text":
         if (msg.channel !== this.channel || typeof msg.text !== "string") break;

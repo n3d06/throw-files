@@ -57,6 +57,11 @@ import {
   textSendProblem,
   wouldExceedExpectedSize,
 } from "../../utils/transfer";
+import {
+  canSaveToDisk,
+  openReceiveSink,
+  type ReceiveSink,
+} from "../../utils/receive-sink";
 import * as S from "./styles";
 
 const FRONTEND_URL: string =
@@ -66,6 +71,7 @@ const FRONTEND_URL: string =
   // hand somebody a localhost link in production.
   window.location.origin;
 
+/** A receive fails after this long with no new chunk (reset on every chunk). */
 const TRANSFER_TIMEOUT = 5 * 60 * 1000;
 const TOAST_DURATION = 5000;
 const OBJECT_URL_TTL = 60_000;
@@ -94,6 +100,17 @@ interface Transfer {
   bytes: number;
   direction: Direction;
   compressed: boolean;
+  /** Offered but not yet accepted by a receiver. */
+  waiting?: boolean;
+}
+
+/** A file another device wants to send, waiting for this user's answer. */
+interface IncomingOffer {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  compressed: boolean;
 }
 
 interface HistoryEntry {
@@ -119,9 +136,12 @@ interface ReadyFile {
   size: number;
   type: string;
   compressed: boolean;
+  /** In memory, or (when savedToDisk) a disk-backed File read lazily. */
   blob: Blob;
   /** Object URL for an inline preview; set only for image files. */
   previewUrl?: string;
+  /** Already written to the place the user picked on accept; no Save step. */
+  savedToDisk?: boolean;
 }
 
 /** A text snippet sent or received on this channel. Kept in memory only. */
@@ -136,7 +156,8 @@ interface TextMessage {
 const MAX_MESSAGES = 50;
 
 interface ReceiveBuffer {
-  chunks: Blob[];
+  /** Where chunks go: the user's chosen file, or memory as a fallback. */
+  sink: ReceiveSink;
   bytes: number;
   info: { name: string; type: string; size: number; compressed: boolean };
   timeoutId: ReturnType<typeof setTimeout>;
@@ -472,7 +493,11 @@ const HistoryModal = ({
 
 export const Home = memo(() => {
   const uploaderRef = useRef<ThrowFileUpload | null>(null);
-  if (!uploaderRef.current) uploaderRef.current = new ThrowFileUpload(socket);
+  // An offer counts as declined once every other device on the channel says no.
+  if (!uploaderRef.current)
+    uploaderRef.current = new ThrowFileUpload(socket, () =>
+      Math.max(1, connectedUsersRef.current - 1),
+    );
   const uploader = uploaderRef.current;
 
   const [code, setCode] = useState("");
@@ -487,6 +512,12 @@ export const Home = memo(() => {
   connectedUsersRef.current = connectedUsers;
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [readyFiles, setReadyFiles] = useState<ReadyFile[]>([]);
+  /** Files other devices want to send, oldest first; the first is prompted. */
+  const [offers, setOffers] = useState<IncomingOffer[]>([]);
+  const offersRef = useRef<IncomingOffer[]>([]);
+  offersRef.current = offers;
+  /** The save picker is open for the current offer. */
+  const [accepting, setAccepting] = useState(false);
   /** Received image open in the full-size viewer. */
   const [viewingId, setViewingId] = useState<string | null>(null);
   const viewing = readyFiles.find((f) => f.id === viewingId && f.previewUrl);
@@ -563,7 +594,10 @@ export const Home = memo(() => {
   const discardBuffer = useCallback(
     (id: string) => {
       const buffer = buffersRef.current[id];
-      if (buffer) clearTimeout(buffer.timeoutId);
+      if (buffer) {
+        clearTimeout(buffer.timeoutId);
+        buffer.sink.abort();
+      }
       delete buffersRef.current[id];
       dropTransfer(id);
     },
@@ -787,6 +821,86 @@ export const Home = memo(() => {
     );
   }, []);
 
+  /** (Re)start the no-progress timer for a receive. */
+  const armTimeout = useCallback(
+    (id: string) => {
+      const buffer = buffersRef.current[id];
+      if (!buffer) return;
+      clearTimeout(buffer.timeoutId);
+      buffer.timeoutId = setTimeout(() => {
+        if (buffersRef.current[id] !== buffer) return;
+        addToast(
+          "Transfer timed out",
+          `${buffer.info.name} stopped arriving. Nothing was saved.`,
+          "error",
+        );
+        discardBuffer(id);
+      }, TRANSFER_TIMEOUT);
+    },
+    [addToast, discardBuffer],
+  );
+
+  /**
+   * Accept an offer. Where the browser allows it the save picker opens first,
+   * so the file streams straight to disk; otherwise it collects in memory.
+   * Closing the picker leaves the prompt open.
+   */
+  const acceptOffer = useCallback(
+    async (offer: IncomingOffer) => {
+      setAccepting(true);
+      let sink: ReceiveSink | null;
+      try {
+        sink = await openReceiveSink(offer.name);
+      } catch (error) {
+        addToast(
+          "Can't save there",
+          error instanceof Error ? error.message : "Pick another location.",
+          "error",
+        );
+        return;
+      } finally {
+        setAccepting(false);
+      }
+      if (!sink) return;
+
+      // The sender may have cancelled while the picker was open.
+      if (!offersRef.current.some((o) => o.id === offer.id)) {
+        sink.abort();
+        addToast("No longer offered", `${offer.name} was withdrawn.`, "info");
+        return;
+      }
+
+      buffersRef.current[offer.id] = {
+        sink,
+        bytes: 0,
+        info: {
+          name: offer.name,
+          type: offer.type,
+          size: offer.size,
+          compressed: offer.compressed,
+        },
+        timeoutId: undefined as unknown as ReturnType<typeof setTimeout>,
+      };
+      armTimeout(offer.id);
+      upsertTransfer({
+        id: offer.id,
+        name: offer.name,
+        size: offer.size,
+        bytes: 0,
+        direction: "receive",
+        compressed: offer.compressed,
+      });
+      setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+      socket.emit("file-accept", { id: offer.id });
+    },
+    [addToast, armTimeout, upsertTransfer],
+  );
+
+  const declineOffer = useCallback((offer: IncomingOffer) => {
+    socket.emit("file-decline", { id: offer.id });
+    setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+  }, []);
+
   // ── Socket wiring (registered once) ───────────────────────────────────────
 
   useEffect(() => {
@@ -811,60 +925,32 @@ export const Home = memo(() => {
       setConnectedUsers(typeof count === "number" ? count : 0);
     };
 
-    const onIncoming = (data: { name?: string }) => {
-      vibrate();
-      addToast("Incoming", `Receiving ${data?.name ?? "a file"}…`, "info");
-    };
-
-    const onChunk = (data: {
-      id: string;
-      name: string;
-      type: string;
-      size: number;
-      compressed: boolean;
-      file: ArrayBuffer;
-    }) => {
-      if (!data.file || data.file.byteLength === 0) return;
+    const onOffer = (data: IncomingOffer) => {
+      // An implausible size never reaches the user: decline it outright.
       if (!(data.size > 0) || data.size > MAX_FILE_BYTES) {
-        addToast(
-          "Rejected",
-          `${data.name || "A file"} declares an implausible size.`,
-          "error",
-        );
+        socket.emit("file-decline", { id: data.id });
         return;
       }
+      vibrate();
+      setOffers((prev) =>
+        prev.some((o) => o.id === data.id)
+          ? prev
+          : [
+              ...prev,
+              {
+                ...data,
+                name: data.name || "download",
+                type: data.type || "application/octet-stream",
+              },
+            ],
+      );
+    };
 
-      let buffer = buffersRef.current[data.id];
-      if (!buffer) {
-        buffer = buffersRef.current[data.id] = {
-          chunks: [],
-          bytes: 0,
-          info: {
-            name: data.name || "download",
-            type: data.type || "application/octet-stream",
-            size: data.size,
-            compressed: Boolean(data.compressed),
-          },
-          timeoutId: setTimeout(() => {
-            const stalled = buffersRef.current[data.id];
-            if (!stalled) return;
-            addToast(
-              "Transfer timed out",
-              `${stalled.info.name} stopped arriving. Nothing was saved.`,
-              "error",
-            );
-            discardBuffer(data.id);
-          }, TRANSFER_TIMEOUT),
-        };
-        upsertTransfer({
-          id: data.id,
-          name: buffer.info.name,
-          size: data.size,
-          bytes: 0,
-          direction: "receive",
-          compressed: buffer.info.compressed,
-        });
-      }
+    // Chunks only land for transfers this user accepted. Anything else (an
+    // offer declined here, or accepted on another device) is dropped unread.
+    const onChunk = (data: { id: string; file: ArrayBuffer }) => {
+      const buffer = buffersRef.current[data.id];
+      if (!buffer || !data.file || data.file.byteLength === 0) return;
 
       if (
         wouldExceedExpectedSize(buffer.bytes, data.file.byteLength, buffer.info.size)
@@ -878,12 +964,13 @@ export const Home = memo(() => {
         return;
       }
 
-      buffer.chunks.push(new Blob([data.file]));
+      buffer.sink.write(data.file);
       buffer.bytes += data.file.byteLength;
+      armTimeout(data.id);
       setTransferBytes(data.id, buffer.bytes);
     };
 
-    const onFileDone = (data: { id: string; name?: string }) => {
+    const onFileDone = async (data: { id: string; name?: string }) => {
       const buffer = buffersRef.current[data.id];
       if (!buffer) return;
 
@@ -891,9 +978,10 @@ export const Home = memo(() => {
       delete buffersRef.current[data.id];
       dropTransfer(data.id);
 
-      // The old code handed the browser whatever chunks had arrived, so a
-      // single dropped frame produced a truncated file reported as a success.
+      // Never keep a file that is missing bytes: a dropped frame would
+      // otherwise produce a truncated file reported as a success.
       if (!isTransferComplete(buffer.bytes, buffer.info.size)) {
+        buffer.sink.abort();
         addToast(
           "Transfer incomplete",
           `${buffer.info.name} arrived with ${formatFileSize(buffer.bytes)} of ${formatFileSize(buffer.info.size)}. Nothing was saved.`,
@@ -902,7 +990,19 @@ export const Home = memo(() => {
         return;
       }
 
-      const blob = new Blob(buffer.chunks, { type: buffer.info.type });
+      let blob: Blob;
+      try {
+        blob = await buffer.sink.close(buffer.info.type);
+      } catch (error) {
+        addToast(
+          "Couldn't save",
+          error instanceof Error ? error.message : `${buffer.info.name} could not be written.`,
+          "error",
+        );
+        return;
+      }
+
+      const onDisk = buffer.sink.onDisk;
       setReadyFiles((prev) => [
         {
           id: data.id,
@@ -911,6 +1011,7 @@ export const Home = memo(() => {
           type: buffer.info.type,
           compressed: buffer.info.compressed,
           blob,
+          savedToDisk: onDisk,
           previewUrl:
             !buffer.info.compressed &&
             isPreviewableImage(buffer.info.type, buffer.info.size)
@@ -930,13 +1031,21 @@ export const Home = memo(() => {
       });
       vibrate();
       addToast(
-        "File ready",
-        `${buffer.info.name} — press Save to download it.`,
+        onDisk ? "File saved" : "File ready",
+        onDisk
+          ? `${buffer.info.name} is saved where you chose.`
+          : `${buffer.info.name} — press Save to download it.`,
         "success",
       );
     };
 
     const onFileAbort = (data: { id: string; name?: string }) => {
+      const offer = offersRef.current.find((o) => o.id === data.id);
+      if (offer) {
+        setOffers((prev) => prev.filter((o) => o.id !== data.id));
+        addToast("Offer withdrawn", `${offer.name} is no longer being sent.`, "info");
+        return;
+      }
       if (!buffersRef.current[data.id]) return;
       const name = buffersRef.current[data.id].info.name;
       discardBuffer(data.id);
@@ -956,6 +1065,8 @@ export const Home = memo(() => {
     };
 
     const onDisconnected = () => {
+      // Offers die with the connection; the sender sees it drop too.
+      setOffers([]);
       const ids = Object.keys(buffersRef.current);
       if (ids.length === 0) return;
       ids.forEach((id) => discardBuffer(id));
@@ -969,7 +1080,7 @@ export const Home = memo(() => {
     socket.on("state", onState);
     socket.on("peer-joined", onPeerJoined);
     socket.on("connections", onConnections);
-    socket.on("file-incoming", onIncoming);
+    socket.on("file-offer", onOffer);
     socket.on("chunk", onChunk);
     socket.on("file-done", onFileDone);
     socket.on("file-abort", onFileAbort);
@@ -980,7 +1091,7 @@ export const Home = memo(() => {
       socket.off("state", onState);
       socket.off("peer-joined", onPeerJoined);
       socket.off("connections", onConnections);
-      socket.off("file-incoming", onIncoming);
+      socket.off("file-offer", onOffer);
       socket.off("chunk", onChunk);
       socket.off("file-done", onFileDone);
       socket.off("file-abort", onFileAbort);
@@ -991,25 +1102,28 @@ export const Home = memo(() => {
     addToast,
     addHistory,
     addMessage,
+    armTimeout,
     discardBuffer,
     dropTransfer,
     setTransferBytes,
-    upsertTransfer,
   ]);
 
   // ── Uploader wiring ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    const onStart = ({ file }: { file: UploadFileInfo }) => {
-      upsertTransfer({
-        id: file.id,
-        name: file.name,
-        size: file.size,
-        bytes: 0,
-        direction: "send",
-        compressed: file.compressed,
-      });
-    };
+    const row = (file: UploadFileInfo, waiting: boolean): Transfer => ({
+      id: file.id,
+      name: file.name,
+      size: file.size,
+      bytes: 0,
+      direction: "send",
+      compressed: file.compressed,
+      waiting,
+    });
+    const onOffer = ({ file }: { file: UploadFileInfo }) =>
+      upsertTransfer(row(file, true));
+    const onStart = ({ file }: { file: UploadFileInfo }) =>
+      upsertTransfer(row(file, false));
 
     const onProgress = ({ id, bytesSent }: { id: string; bytesSent: number }) =>
       setTransferBytes(id, bytesSent);
@@ -1033,21 +1147,26 @@ export const Home = memo(() => {
     // an empty file or a read failure left the UI stuck mid-transfer forever.
     const onError = (event: UploadErrorEvent) => {
       if (event.id) dropTransfer(event.id);
-      const cancelled = event.code === UploadError.Cancelled;
-      addToast(
-        cancelled ? "Cancelled" : "Send failed",
-        event.message,
-        cancelled ? "info" : "error",
-      );
+      const [title, kind]: [string, ToastVariant] =
+        event.code === UploadError.Cancelled
+          ? ["Cancelled", "info"]
+          : event.code === UploadError.Declined
+            ? ["Declined", "warning"]
+            : event.code === UploadError.NoAnswer
+              ? ["No answer", "warning"]
+              : ["Send failed", "error"];
+      addToast(title, event.message, kind);
       if (fileRef.current) fileRef.current.value = "";
     };
 
+    uploader.addEventListener("offer", onOffer);
     uploader.addEventListener("start", onStart);
     uploader.addEventListener("progress", onProgress);
     uploader.addEventListener("complete", onComplete);
     uploader.addEventListener("error", onError);
 
     return () => {
+      uploader.removeEventListener("offer", onOffer);
       uploader.removeEventListener("start", onStart);
       uploader.removeEventListener("progress", onProgress);
       uploader.removeEventListener("complete", onComplete);
@@ -1083,7 +1202,10 @@ export const Home = memo(() => {
 
   useEffect(
     () => () => {
-      Object.values(buffersRef.current).forEach((b) => clearTimeout(b.timeoutId));
+      Object.values(buffersRef.current).forEach((b) => {
+        clearTimeout(b.timeoutId);
+        b.sink.abort();
+      });
       buffersRef.current = {};
       uploader.dispose();
     },
@@ -1280,6 +1402,60 @@ export const Home = memo(() => {
             <img src={viewing.previewUrl} alt={viewing.name} />
             <S.ImageViewerMeta>{formatFileSize(viewing.size)}</S.ImageViewerMeta>
           </S.ImageViewer>
+        )}
+      </Modal>
+
+      {/* Consent prompt for the oldest pending offer. Closing it declines. */}
+      <Modal
+        visible={offers.length > 0}
+        onClose={() => offers[0] && !accepting && declineOffer(offers[0])}
+        title="Receive this file?"
+        width={440}
+        footer={
+          offers[0] && (
+            <S.ModalFooter>
+              <Button
+                variant="text"
+                onClick={() => declineOffer(offers[0])}
+                disabled={accepting}
+              >
+                Decline
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => void acceptOffer(offers[0])}
+                loading={accepting}
+              >
+                {canSaveToDisk() ? "Accept and choose where" : "Accept"}
+              </Button>
+            </S.ModalFooter>
+          )
+        }
+      >
+        {offers[0] && (
+          <S.OfferBody>
+            <S.OfferFile>
+              <S.FileIconWrapper $receiving>
+                <FileIcon size={20} />
+              </S.FileIconWrapper>
+              <S.FileNameText title={offers[0].name}>
+                {trimFileName(offers[0].name, 32)}
+              </S.FileNameText>
+              {offers[0].compressed && <S.ZipBadge>ZIP</S.ZipBadge>}
+              <S.ReadySize>{formatFileSize(offers[0].size)}</S.ReadySize>
+            </S.OfferFile>
+            <p>
+              Another device on #{joinedChannel} wants to send you this file.{" "}
+              {canSaveToDisk()
+                ? "It will be written straight to the place you choose."
+                : "It will stay in this tab until you press Save."}
+            </p>
+            {offers.length > 1 && (
+              <S.OfferQueue>
+                {offers.length - 1} more waiting after this one
+              </S.OfferQueue>
+            )}
+          </S.OfferBody>
         )}
       </Modal>
 
@@ -1583,7 +1759,11 @@ export const Home = memo(() => {
                       </S.FileNameWrapper>
                       <S.TransferStatus $receiving={receiving}>
                         <S.StatusDot $receiving={receiving} />
-                        {receiving ? "Receiving" : "Sending"}
+                        {transfer.waiting
+                          ? "Waiting for accept"
+                          : receiving
+                            ? "Receiving"
+                            : "Sending"}
                       </S.TransferStatus>
                       <S.CancelButton
                         onClick={() => cancelTransfer(transfer)}
@@ -1620,8 +1800,8 @@ export const Home = memo(() => {
 
           {readyFiles.length > 0 && (
             <S.Section>
-            <S.SectionLabel>Ready to save — {readyFiles.length}</S.SectionLabel>
-            <S.ReadyList aria-label="Files ready to save">
+            <S.SectionLabel>Received — {readyFiles.length}</S.SectionLabel>
+            <S.ReadyList aria-label="Received files">
               {readyFiles.map((file) => (
                 <S.ReadyItem key={file.id}>
                   {file.previewUrl && (
@@ -1648,18 +1828,25 @@ export const Home = memo(() => {
                   </S.FileNameWrapper>
                   <S.ReadyActions>
                     <S.ReadySize>{formatFileSize(file.size)}</S.ReadySize>
-                    <Button
-                      variant="success"
-                      size="small"
-                      onClick={() => saveFile(file)}
-                    >
-                      <Download size={14} />
-                      Save
-                    </Button>
+                    {file.savedToDisk ? (
+                      <S.SavedLabel>
+                        <Check size={16} aria-hidden="true" />
+                        Saved
+                      </S.SavedLabel>
+                    ) : (
+                      <Button
+                        variant="success"
+                        size="small"
+                        onClick={() => saveFile(file)}
+                      >
+                        <Download size={14} />
+                        Save
+                      </Button>
+                    )}
                     <S.CancelButton
                       onClick={() => dismissReadyFile(file.id)}
-                      title="Discard"
-                      aria-label={`Discard ${file.name}`}
+                      title={file.savedToDisk ? "Remove from list" : "Discard"}
+                      aria-label={`${file.savedToDisk ? "Remove" : "Discard"} ${file.name}`}
                     >
                       <X size={14} />
                     </S.CancelButton>

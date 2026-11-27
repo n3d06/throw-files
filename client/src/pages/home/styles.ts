@@ -776,6 +776,45 @@ export const ReadySize = styled.span`
   margin-right: 4px;
 `;
 
+/** Shown instead of Save once a file is already written to disk. */
+export const SavedLabel = styled.span`
+  ${type.labelLarge}
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 4px;
+  color: var(--md-success);
+`;
+
+// ── Incoming offer dialog ───────────────────────────────────────────────────
+
+export const OfferBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+export const OfferFile = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 16px;
+  border-radius: var(--md-shape-md);
+  background: var(--md-surface-container-highest);
+
+  ${ReadySize} {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+`;
+
+export const OfferQueue = styled.p`
+  ${type.bodySmall}
+  color: var(--md-on-surface-variant);
+`;
+
 // ── Text snippets ───────────────────────────────────────────────────────────
 
 export const TextComposer = styled.div<{ $inactive?: boolean }>`

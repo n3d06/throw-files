@@ -18,7 +18,14 @@ export const UploadError = {
   Cancelled: "cancelled",
   ReadFailed: "read-failed",
   Disconnected: "disconnected",
+  Declined: "declined",
+  NoAnswer: "no-answer",
 } as const;
+
+/** How long an offer waits for someone on the channel to accept it. */
+export const OFFER_TIMEOUT_MS = 2 * 60 * 1000;
+
+type Answer = "accept" | "decline" | "cancelled" | "timeout" | "disconnected";
 
 export type UploadErrorCode = (typeof UploadError)[keyof typeof UploadError];
 
@@ -37,6 +44,9 @@ export interface UploadErrorEvent {
 }
 
 interface Events {
+  /** Offered and waiting for a receiver to accept; no data sent yet. */
+  offer: { file: UploadFileInfo };
+  /** Accepted: bytes start flowing. */
   start: { file: UploadFileInfo };
   progress: { id: string; bytesSent: number; size: number };
   complete: { file: UploadFileInfo };
@@ -58,13 +68,36 @@ class ThrowFileUpload {
   private listeners: Map<string, ((payload: any) => void)[]> = new Map();
   private aborted: Set<string> = new Set();
   private active: Set<string> = new Set();
+  /** Offers still waiting for an answer, keyed by transfer id. */
+  private pending: Map<
+    string,
+    { answer: (a: Answer) => void; declines: number }
+  > = new Map();
+  /** Other devices on the channel; an offer fails once all have declined. */
+  private readonly peerCount: () => number;
 
-  private readonly onDisconnected = () => this.abortAll();
+  private readonly onDisconnected = () => {
+    this.pending.forEach((p) => p.answer("disconnected"));
+    this.abortAll();
+  };
 
-  constructor(socket: ThrowSocket) {
+  private readonly onAccept = ({ id }: { id: string }) =>
+    this.pending.get(id)?.answer("accept");
+
+  private readonly onDecline = ({ id }: { id: string }) => {
+    const p = this.pending.get(id);
+    if (!p) return;
+    p.declines += 1;
+    if (p.declines >= Math.max(1, this.peerCount())) p.answer("decline");
+  };
+
+  constructor(socket: ThrowSocket, peerCount: () => number = () => 1) {
     this.socket = socket;
+    this.peerCount = peerCount;
     // A dropped connection invalidates every in-flight byte offset.
     this.socket.on("disconnected", this.onDisconnected);
+    this.socket.on("file-accept", this.onAccept);
+    this.socket.on("file-decline", this.onDecline);
   }
 
   /**
@@ -73,8 +106,11 @@ class ThrowFileUpload {
    * listener behind.
    */
   dispose(): void {
+    this.pending.forEach((p) => p.answer("cancelled"));
     this.abortAll();
     this.socket.off("disconnected", this.onDisconnected);
+    this.socket.off("file-accept", this.onAccept);
+    this.socket.off("file-decline", this.onDecline);
   }
 
   addEventListener<K extends keyof Events>(type: K, handler: Listener<K>): void {
@@ -100,7 +136,22 @@ class ThrowFileUpload {
   }
 
   cancelUpload(fileId: string): void {
+    this.pending.get(fileId)?.answer("cancelled");
     if (this.active.has(fileId)) this.aborted.add(fileId);
+  }
+
+  /** Resolves with the first decisive answer to the offer `id`. */
+  private awaitAnswer(id: string): Promise<Answer> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => finish("timeout"), OFFER_TIMEOUT_MS);
+      const finish = (a: Answer) => {
+        if (!this.pending.has(id)) return;
+        clearTimeout(timer);
+        this.pending.delete(id);
+        resolve(a);
+      };
+      this.pending.set(id, { answer: finish, declines: 0 });
+    });
   }
 
   abortAll(): void {
@@ -159,8 +210,39 @@ class ThrowFileUpload {
     };
 
     this.active.add(id);
-    this.dispatch("start", { file: info });
+    this.dispatch("offer", { file: info });
 
+    // Nothing is sent until a receiver says yes, so an unwanted file never
+    // costs bandwidth or lands in anyone's memory.
+    this.socket.emit("file-offer", {
+      id: info.id,
+      name: info.name,
+      fileType: info.type,
+      size: info.size,
+      compressed: info.compressed,
+    });
+    const answer = await this.awaitAnswer(id);
+    if (answer !== "accept") {
+      this.cleanup(id);
+      // Closes the prompt on every other device still showing this offer.
+      this.socket.emit("file-abort", { id: info.id, name: info.name });
+      const { code, message } = {
+        decline: { code: UploadError.Declined, message: `${info.name} was declined.` },
+        timeout: {
+          code: UploadError.NoAnswer,
+          message: `Nobody accepted ${info.name} in time.`,
+        },
+        cancelled: { code: UploadError.Cancelled, message: `${info.name} was cancelled.` },
+        disconnected: {
+          code: UploadError.Disconnected,
+          message: `Connection lost before ${info.name} was accepted.`,
+        },
+      }[answer];
+      this.dispatch("error", { id, code, message });
+      return;
+    }
+
+    this.dispatch("start", { file: info });
     this.socket.emit("file-start", {
       id: info.id,
       name: info.name,
