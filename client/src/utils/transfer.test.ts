@@ -8,10 +8,28 @@ import {
   frameByteLength,
   isTransferComplete,
   maxHeaderByteLength,
+  MAX_PREVIEW_BYTES,
+  isPreviewableImage,
   pickChunkSize,
   textSendProblem,
   wouldExceedExpectedSize,
 } from "./transfer";
+
+describe("isPreviewableImage", () => {
+  test("accepts common image types", () => {
+    for (const type of ["image/png", "image/jpeg", "image/webp", "IMAGE/GIF"]) {
+      expect(isPreviewableImage(type, 1000)).toBe(true);
+    }
+  });
+
+  test("rejects non-images, empty files and huge files", () => {
+    expect(isPreviewableImage("application/pdf", 1000)).toBe(false);
+    expect(isPreviewableImage("application/zip", 1000)).toBe(false);
+    expect(isPreviewableImage("", 1000)).toBe(false);
+    expect(isPreviewableImage("image/png", 0)).toBe(false);
+    expect(isPreviewableImage("image/png", MAX_PREVIEW_BYTES + 1)).toBe(false);
+  });
+});
 
 describe("textSendProblem", () => {
   test("rejects blank text", () => {

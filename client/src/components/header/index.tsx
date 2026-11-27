@@ -22,6 +22,16 @@ const spinIn = keyframes`
 
 export const Header = () => {
   const [theme, setThemeState] = useState<Theme>(currentTheme);
+  const [scrolled, setScrolled] = useState(false);
+
+  // MD3 top app bar: flat at the top of the page, raised once content scrolls
+  // underneath it.
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 0);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
 
   // Until the user picks one, keep following the OS as it changes.
   useEffect(
@@ -41,7 +51,7 @@ export const Header = () => {
   const label = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
 
   return (
-    <HeaderContainer>
+    <HeaderContainer $scrolled={scrolled}>
       <LogoLink to="/">
         <LogoMark>
           <UploadIcon>
@@ -76,7 +86,7 @@ export const Header = () => {
 };
 
 /** MD3 small top app bar: 64dp, surface colour, Title large. */
-const HeaderContainer = styled.header`
+const HeaderContainer = styled.header<{ $scrolled: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
@@ -87,7 +97,12 @@ const HeaderContainer = styled.header`
   justify-content: space-between;
   padding: 0 8px 0 16px;
   height: 64px;
-  background: var(--md-surface);
+  background: ${(p) =>
+    p.$scrolled ? "var(--md-surface-container)" : "var(--md-surface)"};
+  box-shadow: ${(p) => (p.$scrolled ? "var(--md-elevation-2)" : "none")};
+  transition:
+    background-color 0.25s var(--md-ease-standard),
+    box-shadow 0.25s var(--md-ease-standard);
   animation: ${slideDown} 0.4s var(--md-ease-emphasized-decelerate) both;
 `;
 

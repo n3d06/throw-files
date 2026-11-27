@@ -30,6 +30,7 @@ import {
   Info,
   Check,
   Send,
+  Type,
 } from "lucide-react";
 import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
@@ -52,6 +53,7 @@ import { formatFileSize, trimFileName } from "../../utils/format";
 import {
   MAX_FILE_BYTES,
   MAX_TEXT_CHARS,
+  isPreviewableImage,
   isTransferComplete,
   textSendProblem,
   wouldExceedExpectedSize,
@@ -122,6 +124,8 @@ interface ReadyFile {
   type: string;
   compressed: boolean;
   blob: Blob;
+  /** Object URL for an inline preview; set only for image files. */
+  previewUrl?: string;
 }
 
 /** A text snippet sent or received on this channel. Kept in memory only. */
@@ -533,12 +537,28 @@ export const Home = memo(() => {
   connectedUsersRef.current = connectedUsers;
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [readyFiles, setReadyFiles] = useState<ReadyFile[]>([]);
+  /** Received image open in the full-size viewer. */
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const viewing = readyFiles.find((f) => f.id === viewingId && f.previewUrl);
+
+  // Preview URLs pin their blobs in memory; release whatever is left on unmount.
+  const readyFilesRef = useRef<ReadyFile[]>([]);
+  readyFilesRef.current = readyFiles;
+  useEffect(
+    () => () =>
+      readyFilesRef.current.forEach(
+        (f) => f.previewUrl && URL.revokeObjectURL(f.previewUrl),
+      ),
+    [],
+  );
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  /** Which tab of the send card is showing. */
+  const [sendMode, setSendMode] = useState<"file" | "text">("file");
   const [textDraft, setTextDraft] = useState("");
   const [messages, setMessages] = useState<TextMessage[]>([]);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -800,7 +820,23 @@ export const Home = memo(() => {
   }, []);
 
   const dismissReadyFile = useCallback((id: string) => {
-    setReadyFiles((prev) => prev.filter((f) => f.id !== id));
+    setReadyFiles((prev) => {
+      const file = prev.find((f) => f.id === id);
+      if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl);
+      return prev.filter((f) => f.id !== id);
+    });
+    setViewingId((current) => (current === id ? null : current));
+  }, []);
+
+  /** An image whose bytes didn't decode loses its preview, keeping its row. */
+  const dropPreview = useCallback((id: string) => {
+    setReadyFiles((prev) =>
+      prev.map((f) => {
+        if (f.id !== id || !f.previewUrl) return f;
+        URL.revokeObjectURL(f.previewUrl);
+        return { ...f, previewUrl: undefined };
+      }),
+    );
   }, []);
 
   // ── Socket wiring (registered once) ───────────────────────────────────────
@@ -918,6 +954,7 @@ export const Home = memo(() => {
         return;
       }
 
+      const blob = new Blob(buffer.chunks, { type: buffer.info.type });
       setReadyFiles((prev) => [
         {
           id: data.id,
@@ -925,7 +962,12 @@ export const Home = memo(() => {
           size: buffer.info.size,
           type: buffer.info.type,
           compressed: buffer.info.compressed,
-          blob: new Blob(buffer.chunks, { type: buffer.info.type }),
+          blob,
+          previewUrl:
+            !buffer.info.compressed &&
+            isPreviewableImage(buffer.info.type, buffer.info.size)
+              ? URL.createObjectURL(blob)
+              : undefined,
         },
         ...prev,
       ]);
@@ -1266,6 +1308,33 @@ export const Home = memo(() => {
         joinSignal={peerJoinCount}
       />
 
+      <Modal
+        visible={Boolean(viewing)}
+        onClose={() => setViewingId(null)}
+        title={viewing ? trimFileName(viewing.name, 40) : ""}
+        width={880}
+        footer={
+          viewing && (
+            <S.ModalFooter>
+              <Button variant="text" onClick={() => setViewingId(null)}>
+                Close
+              </Button>
+              <Button variant="primary" onClick={() => saveFile(viewing)}>
+                <Download size={16} />
+                Save
+              </Button>
+            </S.ModalFooter>
+          )
+        }
+      >
+        {viewing?.previewUrl && (
+          <S.ImageViewer>
+            <img src={viewing.previewUrl} alt={viewing.name} />
+            <S.ImageViewerMeta>{formatFileSize(viewing.size)}</S.ImageViewerMeta>
+          </S.ImageViewer>
+        )}
+      </Modal>
+
       <HistoryModal
         visible={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
@@ -1373,13 +1442,59 @@ export const Home = memo(() => {
                   </span>
                 </S.DeviceCount>
                 </S.StatusRow>
-          <S.FileSection
-            $dragging={isDragging}
-            onDragEnter={handleDragEnter}
+          {/* File and text share one card behind MD3 tabs. Drag events sit on
+              the card, so dragging a file in from the Text tab still lands. */}
+          <S.SendCard
+            onDragEnter={(event) => {
+              handleDragEnter(event);
+              if (Array.from(event.dataTransfer?.types ?? []).includes("Files"))
+                setSendMode("file");
+            }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            aria-label="File upload area"
+          >
+            <S.SendTabs role="tablist" aria-label="What to send">
+              {(
+                [
+                  { key: "file", label: "File", icon: <Upload size={18} /> },
+                  { key: "text", label: "Text", icon: <Type size={18} /> },
+                ] as const
+              ).map((tab, i, tabs) => (
+                <S.SendTab
+                  key={tab.key}
+                  id={`send-tab-${tab.key}`}
+                  role="tab"
+                  type="button"
+                  aria-selected={sendMode === tab.key}
+                  aria-controls={`send-panel-${tab.key}`}
+                  tabIndex={sendMode === tab.key ? 0 : -1}
+                  $active={sendMode === tab.key}
+                  onClick={() => setSendMode(tab.key)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+                      return;
+                    event.preventDefault();
+                    const next =
+                      tabs[(i + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+                    setSendMode(next.key);
+                    document.getElementById(`send-tab-${next.key}`)?.focus();
+                  }}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </S.SendTab>
+              ))}
+            </S.SendTabs>
+
+          <S.SendPanels>
+          <S.FileSection
+            id="send-panel-file"
+            role="tabpanel"
+            aria-labelledby="send-tab-file"
+            $dragging={isDragging}
+            $inactive={sendMode !== "file"}
+            aria-hidden={sendMode !== "file" || undefined}
           >
             {transferring ? (
               <S.LoadingDotsWrapper
@@ -1417,13 +1532,16 @@ export const Home = memo(() => {
               </S.SendButtonWrapper>
             )}
           </S.FileSection>
-          <S.Section>
-            <S.SectionLabel as="label" htmlFor="text-input">
-              Send text
-            </S.SectionLabel>
-            <S.TextComposer>
+            <S.TextComposer
+              id="send-panel-text"
+              role="tabpanel"
+              aria-labelledby="send-tab-text"
+              $inactive={sendMode !== "text"}
+              aria-hidden={sendMode !== "text" || undefined}
+            >
               <S.TextArea
                 id="text-input"
+                aria-label="Text to send"
                 value={textDraft}
                 onChange={(e) => setTextDraft(e.target.value)}
                 onKeyDown={handleTextKeyDown}
@@ -1450,7 +1568,8 @@ export const Home = memo(() => {
                 </Button>
               </S.TextComposerFooter>
             </S.TextComposer>
-          </S.Section>
+          </S.SendPanels>
+          </S.SendCard>
           {messages.length > 0 && (
             <S.Section>
               <S.SectionLabel>Messages — {messages.length}</S.SectionLabel>
@@ -1565,6 +1684,19 @@ export const Home = memo(() => {
             <S.ReadyList aria-label="Files ready to save">
               {readyFiles.map((file) => (
                 <S.ReadyItem key={file.id}>
+                  {file.previewUrl && (
+                    <S.ReadyPreview
+                      type="button"
+                      onClick={() => setViewingId(file.id)}
+                      aria-label={`View ${file.name} full size`}
+                    >
+                      <img
+                        src={file.previewUrl}
+                        alt={file.name}
+                        onError={() => dropPreview(file.id)}
+                      />
+                    </S.ReadyPreview>
+                  )}
                   <S.FileNameWrapper>
                     <S.FileIconWrapper $receiving>
                       <CheckCircle size={15} />

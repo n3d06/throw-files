@@ -33,6 +33,31 @@ export const MAX_FILENAME_LENGTH = 255;
  */
 export const MAX_TEXT_CHARS = 50_000;
 
+/** Largest received image we decode for an inline preview. */
+export const MAX_PREVIEW_BYTES = 50 * 1024 * 1024;
+
+const PREVIEW_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/bmp",
+  "image/svg+xml",
+]);
+
+/**
+ * Whether a received file should get an inline image preview. The type is the
+ * sender's claim, so a mismatch is still possible; the <img> just fails to load
+ * and the row falls back to the name. SVG is safe here because an <img> never
+ * runs a document's scripts.
+ */
+export function isPreviewableImage(type: string, size: number): boolean {
+  return (
+    PREVIEW_TYPES.has(type.toLowerCase()) && size > 0 && size <= MAX_PREVIEW_BYTES
+  );
+}
+
 /** Why `text` cannot be sent, or null if it can. */
 export function textSendProblem(text: string): "empty" | "too-long" | null {
   if (!text.trim()) return "empty";

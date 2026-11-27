@@ -539,8 +539,96 @@ export const SendButtonIcon = styled.div`
   display: flex;
 `;
 
+/** One card for sending, File and Text behind tabs, so only one shows. */
+export const SendCard = styled.section`
+  background: var(--md-surface-container-low);
+  border-radius: var(--md-shape-lg);
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+`;
+
+/** MD3 primary tabs (inline icon), divider underneath. */
+export const SendTabs = styled.div`
+  display: flex;
+  margin: 0 -16px;
+  border-bottom: 1px solid var(--md-outline-variant);
+`;
+
+export const SendTab = styled.button<{ $active: boolean }>`
+  ${type.titleSmall}
+  position: relative;
+  flex: 1;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: ${(p) =>
+    p.$active ? "var(--md-primary)" : "var(--md-on-surface-variant)"};
+  transition:
+    color 0.2s ${easeOut},
+    background-color 0.15s ${easeOut};
+  ${stateLayer("var(--md-on-surface)")}
+
+  &:first-child {
+    border-top-left-radius: var(--md-shape-lg);
+  }
+  &:last-child {
+    border-top-right-radius: var(--md-shape-lg);
+  }
+
+  /* Active indicator: 3dp, rounded top, under the label. */
+  &::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -1px;
+    width: 64px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--md-primary);
+    transform: translateX(-50%) scaleX(${(p) => (p.$active ? 1 : 0)});
+    transition: transform 0.3s ${spring};
+  }
+
+  &:focus-visible {
+    outline-offset: -3px;
+  }
+`;
+
+/**
+ * Both tab panels sit in the same grid cell, so the card is always as tall as
+ * the taller one and switching tabs never makes it jump. The inactive panel is
+ * hidden with visibility, which also drops it from the tab order and the
+ * accessibility tree.
+ */
+export const SendPanels = styled.div`
+  display: grid;
+
+  > * {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+`;
+
+const tabPanel = css<{ $inactive?: boolean }>`
+  visibility: ${(p) => (p.$inactive ? "hidden" : "visible")};
+  ${(p) =>
+    !p.$inactive &&
+    css`
+      animation: ${fadeUp} 0.25s ${spring} both;
+    `}
+`;
+
 /** Drop zone: an outlined card whose outline is dashed to invite a drop. */
-export const FileSection = styled.div<{ $dragging?: boolean }>`
+export const FileSection = styled.div<{ $dragging?: boolean; $inactive?: boolean }>`
+  ${tabPanel}
   transition:
     background-color 0.2s ${easeOut},
     border-color 0.2s ${easeOut};
@@ -549,7 +637,7 @@ export const FileSection = styled.div<{ $dragging?: boolean }>`
   align-items: center;
   flex: 1;
   justify-content: center;
-  min-height: 184px;
+  min-height: 168px;
   padding: 24px 16px;
   background: var(--md-surface-container-low);
   border: 1px dashed var(--md-outline);
@@ -614,9 +702,10 @@ export const ReadyItem = styled.div`
   animation: ${slideIn} 0.4s ${spring} both;
   ${filledCard}
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px 16px;
   padding: 8px 8px 8px 16px;
   min-height: 56px;
 
@@ -626,6 +715,63 @@ export const ReadyItem = styled.div`
     gap: 8px;
     padding: 12px 8px 8px 16px;
   }
+`;
+
+/** Thumbnail across the top of a received image's card; opens the viewer. */
+export const ReadyPreview = styled.button`
+  /* Full card width, with an even 8px inset: the card pads 16px left, 8px right. */
+  flex-basis: calc(100% + 8px);
+  order: -1;
+  display: flex;
+  justify-content: center;
+  margin: 0 0 0 -8px;
+  padding: 0;
+  border: none;
+  border-radius: var(--md-shape-sm);
+  overflow: hidden;
+  cursor: zoom-in;
+  /* Checkerboard so transparent PNGs stay visible on either theme. */
+  background:
+    repeating-conic-gradient(var(--md-surface-container-highest) 0% 25%, var(--md-surface-container) 0% 50%)
+    50% / 16px 16px;
+
+  img {
+    display: block;
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    transition: transform 0.3s ${easeOut};
+  }
+
+  &:hover img {
+    transform: scale(1.02);
+  }
+
+  /* The card stacks vertically on phones, where flex-basis would be a height. */
+  @media (max-width: 480px) {
+    flex-basis: auto;
+  }
+`;
+
+export const ImageViewer = styled.figure`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+
+  img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100dvh - 260px);
+    object-fit: contain;
+    border-radius: var(--md-shape-sm);
+  }
+`;
+
+export const ImageViewerMeta = styled.figcaption`
+  ${type.bodySmall}
+  color: var(--md-on-surface-variant);
 `;
 
 export const ReadyActions = styled.div`
@@ -644,7 +790,8 @@ export const ReadySize = styled.span`
 
 // ── Text snippets ───────────────────────────────────────────────────────────
 
-export const TextComposer = styled.div`
+export const TextComposer = styled.div<{ $inactive?: boolean }>`
+  ${tabPanel}
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -653,9 +800,11 @@ export const TextComposer = styled.div`
 /** MD3 outlined text field, multi-line. */
 export const TextArea = styled.textarea`
   width: 100%;
+  flex: 1;
   min-height: 96px;
   max-height: 240px;
-  resize: vertical;
+  /* Fixed size: the panel sets the height and long text scrolls inside. */
+  resize: none;
   padding: 16px;
   font-family: inherit;
   ${type.bodyLarge}
