@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Info,
   Check,
+  Send,
 } from "lucide-react";
 import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
@@ -50,7 +51,9 @@ import {
 import { formatFileSize, trimFileName } from "../../utils/format";
 import {
   MAX_FILE_BYTES,
+  MAX_TEXT_CHARS,
   isTransferComplete,
+  textSendProblem,
   wouldExceedExpectedSize,
 } from "../../utils/transfer";
 import * as S from "./styles";
@@ -121,6 +124,17 @@ interface ReadyFile {
   blob: Blob;
 }
 
+/** A text snippet sent or received on this channel. Kept in memory only. */
+interface TextMessage {
+  id: string;
+  text: string;
+  at: number;
+  direction: Direction;
+}
+
+/** Oldest snippets fall off past this, so a chatty channel can't grow forever. */
+const MAX_MESSAGES = 50;
+
 interface ReceiveBuffer {
   chunks: Blob[];
   bytes: number;
@@ -154,10 +168,10 @@ const TOAST_ICONS: Record<ToastVariant, JSX.Element> = {
 };
 
 const TOAST_STYLES: Record<ToastVariant, string> = {
-  success: "#23a55a",
-  error: "#f23f43",
-  warning: "#f0b232",
-  info: "#c0392b",
+  success: "#1a73e8",
+  error: "#d93025",
+  warning: "#f9ab00",
+  info: "#1a73e8",
 };
 
 const Toast = ({
@@ -217,6 +231,7 @@ const Toast = ({
   return (
     <S.ToastItem
       ref={itemRef}
+      style={{ ["--toast-color" as string]: TOAST_STYLES[toast.type] }}
       $index={index}
       $expanded={expanded}
       $visible={visible}
@@ -524,6 +539,9 @@ export const Home = memo(() => {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [textDraft, setTextDraft] = useState("");
+  const [messages, setMessages] = useState<TextMessage[]>([]);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const buffersRef = useRef<Record<string, ReceiveBuffer>>({});
@@ -699,6 +717,60 @@ export const Home = memo(() => {
     },
     [addToast, uploader],
   );
+
+  const addMessage = useCallback((message: TextMessage) => {
+    setMessages((prev) => [message, ...prev].slice(0, MAX_MESSAGES));
+  }, []);
+
+  const sendText = useCallback(() => {
+    const text = textDraft;
+    const problem = textSendProblem(text);
+    if (problem === "empty") return;
+    if (problem === "too-long") {
+      addToast(
+        "Text too long",
+        `Keep it under ${MAX_TEXT_CHARS.toLocaleString("en-US")} characters, or send it as a file.`,
+        "error",
+      );
+      return;
+    }
+    if (!joinedChannelRef.current || !socket.connected) {
+      addToast(
+        "Not connected",
+        "Join a channel and wait for the green light before sending.",
+        "error",
+      );
+      return;
+    }
+    if (connectedUsersRef.current < 2) {
+      addToast(
+        "No one to send to",
+        "Wait for another device to join this channel first.",
+        "warning",
+      );
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    socket.emit("text", { id, text });
+    addMessage({ id, text, at: Date.now(), direction: "send" });
+    setTextDraft("");
+  }, [textDraft, addToast, addMessage]);
+
+  const handleTextKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+      // Enter alone adds a newline; Ctrl/Cmd+Enter sends.
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        sendText();
+      }
+    },
+    [sendText],
+  );
+
+  const dismissMessage = useCallback((id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  }, []);
 
   const cancelTransfer = useCallback(
     (transfer: Transfer) => {
@@ -881,6 +953,18 @@ export const Home = memo(() => {
       addToast("Sender cancelled", `${name} was not sent.`, "warning");
     };
 
+    const onText = (data: { id?: unknown; text: string }) => {
+      if (!data.text) return;
+      vibrate();
+      addMessage({
+        id: typeof data.id === "string" && data.id ? data.id : crypto.randomUUID(),
+        text: data.text.slice(0, MAX_TEXT_CHARS),
+        at: Date.now(),
+        direction: "receive",
+      });
+      addToast("Text received", data.text.slice(0, 80), "success");
+    };
+
     const onDisconnected = () => {
       const ids = Object.keys(buffersRef.current);
       if (ids.length === 0) return;
@@ -899,6 +983,7 @@ export const Home = memo(() => {
     socket.on("chunk", onChunk);
     socket.on("file-done", onFileDone);
     socket.on("file-abort", onFileAbort);
+    socket.on("text", onText);
     socket.on("disconnected", onDisconnected);
 
     return () => {
@@ -909,11 +994,13 @@ export const Home = memo(() => {
       socket.off("chunk", onChunk);
       socket.off("file-done", onFileDone);
       socket.off("file-abort", onFileAbort);
+      socket.off("text", onText);
       socket.off("disconnected", onDisconnected);
     };
   }, [
     addToast,
     addHistory,
+    addMessage,
     discardBuffer,
     dropTransfer,
     setTransferBytes,
@@ -1103,6 +1190,24 @@ export const Home = memo(() => {
     return () => clearTimeout(t);
   }, [copied]);
 
+  const copyMessage = useCallback(
+    async (message: TextMessage) => {
+      try {
+        await navigator.clipboard.writeText(message.text);
+        setCopiedMessageId(message.id);
+      } catch {
+        fallbackCopy(message.text);
+      }
+    },
+    [fallbackCopy],
+  );
+
+  useEffect(() => {
+    if (!copiedMessageId) return;
+    const t = setTimeout(() => setCopiedMessageId(null), 1500);
+    return () => clearTimeout(t);
+  }, [copiedMessageId]);
+
   const shareLink = useCallback(async () => {
     const url = `${FRONTEND_URL}/?channel=${joinedChannel ?? code}`;
     if (navigator.share) {
@@ -1143,6 +1248,8 @@ export const Home = memo(() => {
   const recentHistory = history.slice(0, 3);
   const hasPeer = connectedUsers > 1;
   const canSend = connectionState === "open" && hasPeer && !transferring;
+  // Text rides its own control frame, so it can go out mid file transfer.
+  const canSendText = connectionState === "open" && hasPeer;
 
   return (
     <S.HomeComponent>
@@ -1239,7 +1346,6 @@ export const Home = memo(() => {
             <Button
               variant="primary"
               onClick={() => joinChannel(code)}
-              style={{ height: 38 }}
               disabled={
                 !isValidChannelCode(code) ||
                 transferring ||
@@ -1311,6 +1417,84 @@ export const Home = memo(() => {
               </S.SendButtonWrapper>
             )}
           </S.FileSection>
+          <S.Section>
+            <S.SectionLabel as="label" htmlFor="text-input">
+              Send text
+            </S.SectionLabel>
+            <S.TextComposer>
+              <S.TextArea
+                id="text-input"
+                value={textDraft}
+                onChange={(e) => setTextDraft(e.target.value)}
+                onKeyDown={handleTextKeyDown}
+                placeholder={
+                  hasPeer
+                    ? "Type or paste text, a link, a code snippet…"
+                    : "Waiting for another device to join…"
+                }
+                spellCheck="false"
+              />
+              <S.TextComposerFooter>
+                <S.TextHint $over={textDraft.length > MAX_TEXT_CHARS}>
+                  {textDraft.length > MAX_TEXT_CHARS
+                    ? `${textDraft.length.toLocaleString("en-US")} / ${MAX_TEXT_CHARS.toLocaleString("en-US")} characters`
+                    : "Ctrl + Enter to send"}
+                </S.TextHint>
+                <Button
+                  variant="primary"
+                  onClick={sendText}
+                  disabled={!canSendText || textSendProblem(textDraft) !== null}
+                >
+                  <Send size={15} />
+                  Send text
+                </Button>
+              </S.TextComposerFooter>
+            </S.TextComposer>
+          </S.Section>
+          {messages.length > 0 && (
+            <S.Section>
+              <S.SectionLabel>Messages — {messages.length}</S.SectionLabel>
+              <S.MessageList aria-label="Text messages" aria-live="polite">
+                {messages.map((message) => {
+                  const mine = message.direction === "send";
+                  return (
+                    <S.MessageItem key={message.id} $mine={mine}>
+                      <S.MessageBody>
+                        <S.MessageMeta>
+                          {mine ? "You sent" : "Received"} ·{" "}
+                          {formatTime(message.at)}
+                        </S.MessageMeta>
+                        <S.MessageText>{message.text}</S.MessageText>
+                      </S.MessageBody>
+                      <S.IconButton
+                        onClick={() => void copyMessage(message)}
+                        title="Copy text"
+                        aria-label="Copy text"
+                        $success={copiedMessageId === message.id}
+                      >
+                        <S.SwapIcon
+                          key={copiedMessageId === message.id ? "done" : "copy"}
+                        >
+                          {copiedMessageId === message.id ? (
+                            <Check size={16} strokeWidth={3} />
+                          ) : (
+                            <Copy size={16} />
+                          )}
+                        </S.SwapIcon>
+                      </S.IconButton>
+                      <S.CancelButton
+                        onClick={() => dismissMessage(message.id)}
+                        title="Remove"
+                        aria-label="Remove message"
+                      >
+                        <X size={14} />
+                      </S.CancelButton>
+                    </S.MessageItem>
+                  );
+                })}
+              </S.MessageList>
+            </S.Section>
+          )}
           {transfers.length > 0 && (
             <S.Section>
             <S.SectionLabel>In progress — {transfers.length}</S.SectionLabel>

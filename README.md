@@ -24,6 +24,8 @@ and send.
 
 - **Nothing stored**: no database, no file retention, no accounts.
 - **Multiple files**: zipped client-side into one archive.
+- **Text snippets**: send text, links or code (up to 50,000 characters) to the
+  other devices; each arrives with a Copy button. Kept in the tab only.
 - **Explicit saves**: received files stay in the tab until you press Save.
 - **Live progress**: per-transfer progress, cancellation and connection state.
 - **QR code**: show a QR for the channel link so another device can open it.

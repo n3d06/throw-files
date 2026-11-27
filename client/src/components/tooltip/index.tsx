@@ -40,16 +40,17 @@ const Tip = styled.span`
   transform-origin: 50% 100%;
   transition:
     opacity 0.15s ease,
-    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.2s var(--md-ease-standard),
     visibility 0.15s;
   background: var(--floating-bg);
   border: none;
-  box-shadow: var(--floating-shadow);
+  box-shadow: none;
   color: var(--floating-fg);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.3;
-  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.4px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
   white-space: pre-wrap;
   max-width: 260px;

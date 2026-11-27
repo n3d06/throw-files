@@ -10,7 +10,7 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventHandler = (data?: any) => void;
 
-type OutboundEvent = "file-start" | "file-done" | "file-abort";
+type OutboundEvent = "file-start" | "file-done" | "file-abort" | "text";
 
 export type ConnectionState =
   | "idle"
@@ -266,6 +266,10 @@ export class ThrowSocket {
         break;
       case "file-abort":
         this.fire("file-abort", { id: msg.id, name: msg.name });
+        break;
+      case "text":
+        if (msg.channel !== this.channel || typeof msg.text !== "string") break;
+        this.fire("text", { id: msg.id, text: msg.text });
         break;
     }
   }

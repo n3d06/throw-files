@@ -74,72 +74,56 @@ const IconWrapper = styled.span`
 type Size = "small" | "middle" | "large";
 type Variant = ButtonProps["variant"];
 
+// MD3 common buttons: 40dp tall, fully rounded, Label large (14/20, 500).
 const sizeStyles: Record<Size, ReturnType<typeof css>> = {
   small: css`
-    padding: 0 12px;
-    font-size: 13px;
-    height: 30px;
+    padding: 0 16px;
+    height: 32px;
   `,
   middle: css`
-    padding: 0 16px;
-    font-size: 14px;
-    height: 36px;
+    padding: 0 24px;
+    height: 40px;
   `,
   large: css`
-    padding: 0 22px;
-    font-size: 15px;
-    height: 44px;
+    padding: 0 28px;
+    height: 48px;
+    font-size: 16px;
+    line-height: 24px;
   `,
 };
 
+/**
+ * variant → MD3 button type:
+ * primary = filled, secondary = filled tonal, tertiary = outlined,
+ * text = text, danger/success = filled in the error/success role.
+ */
 const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
   primary: css`
-    background: var(--accent);
-    color: #fff;
-    box-shadow: none;
-    font-weight: 500;
-
-    &&:hover:not(:disabled) {
-      background: var(--accent-hover);
-      box-shadow: none;
-    }
-
-    &&:active:not(:disabled) {
-      background: var(--accent-hover);
-      box-shadow: none;
-      transform: scale(0.95);
-    }
+    background: var(--md-primary);
+    color: var(--md-on-primary);
   `,
-  secondary: css``,
+  secondary: css`
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  `,
   danger: css`
-    background: var(--danger);
-    color: #fff;
-
-    &&:hover:not(:disabled),
-    &&:active:not(:disabled) {
-      background: var(--danger-hover);
-    }
+    background: var(--md-error);
+    color: var(--md-on-error);
   `,
   success: css`
-    background: var(--success);
-    color: #fff;
-
-    &&:hover:not(:disabled),
-    &&:active:not(:disabled) {
-      background: var(--success-hover);
-    }
+    background: var(--md-success);
+    color: var(--md-on-success);
   `,
-  tertiary: css``,
+  tertiary: css`
+    background: transparent;
+    color: var(--md-primary);
+    box-shadow: inset 0 0 0 1px var(--md-outline);
+  `,
   text: css`
     background: transparent;
-    box-shadow: none;
-    color: var(--text-link);
-
-    &&:hover:not(:disabled),
-    &&:active:not(:disabled) {
-      background: transparent;
-      text-decoration: underline;
-    }
+    color: var(--md-primary);
+    padding-left: 12px;
+    padding-right: 12px;
   `,
 };
 
@@ -149,6 +133,9 @@ const Btn = styled.button<{
   $loading: boolean;
   $animate?: boolean;
 }>`
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -157,34 +144,57 @@ const Btn = styled.button<{
   white-space: nowrap;
   box-sizing: border-box;
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--md-shape-full);
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 500;
-  transition:
-    background 0.17s,
-    box-shadow 0.2s,
-    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  background: var(--w-face);
-  color: #fff;
-  box-shadow: none;
+  letter-spacing: 0.1px;
+  transition: box-shadow 0.2s var(--md-ease-standard);
 
   ${(p) => sizeStyles[p.$size]}
   ${(p) => variantStyles[p.$variant]}
 
-  &:hover:not(:disabled) {
-    background: var(--hover-bg);
-    box-shadow: var(--hover-shadow);
-    transform: translateY(-1px);
+  /* State layer: the content colour at 8% (hover) / 10% (pressed, focus). */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.15s var(--md-ease-standard);
+    pointer-events: none;
   }
 
-  &:active:not(:disabled) {
-    background: var(--press-bg);
-    box-shadow: var(--press-shadow);
-    transform: scale(0.95);
+  &:hover:not(:disabled)::before {
+    opacity: 0.08;
   }
+
+  &:focus-visible::before,
+  &:active:not(:disabled)::before {
+    opacity: 0.1;
+  }
+
+  /* Filled buttons lift to level 1 on hover. */
+  ${(p) =>
+    ["primary", "danger", "success"].includes(p.$variant) &&
+    css`
+      &:hover:not(:disabled) {
+        box-shadow: var(--md-elevation-1);
+      }
+    `}
 
   &:disabled {
-    opacity: 0.45;
     cursor: not-allowed;
+    color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
+    background: ${(p) =>
+      p.$variant === "text"
+        ? "transparent"
+        : "color-mix(in srgb, var(--md-on-surface) 12%, transparent)"};
+    box-shadow: ${(p) =>
+      p.$variant === "tertiary"
+        ? "inset 0 0 0 1px color-mix(in srgb, var(--md-on-surface) 12%, transparent)"
+        : "none"};
   }
 
   ${(p) =>

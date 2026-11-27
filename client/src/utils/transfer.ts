@@ -26,6 +26,20 @@ export const MAX_FILE_BYTES = 5 * 1024 * 1024 * 1024;
 /** Filesystem-realistic filename ceiling. */
 export const MAX_FILENAME_LENGTH = 255;
 
+/**
+ * Longest text snippet, in UTF-16 code units (what String.length counts).
+ * Must match MAX_TEXT_CHARS in worker/channel.ts. Even fully JSON-escaped this
+ * stays far below `MAX_WS_MESSAGE_BYTES`, so text travels in a single frame.
+ */
+export const MAX_TEXT_CHARS = 50_000;
+
+/** Why `text` cannot be sent, or null if it can. */
+export function textSendProblem(text: string): "empty" | "too-long" | null {
+  if (!text.trim()) return "empty";
+  if (text.length > MAX_TEXT_CHARS) return "too-long";
+  return null;
+}
+
 /** Upper bound on the encoded chunk header, worst case escaping included. */
 export function maxHeaderByteLength(): number {
   return HEADER_BUDGET_BYTES;

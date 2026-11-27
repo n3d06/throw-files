@@ -8,23 +8,33 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = (props: InputProps) => <StyledInput {...props} />;
 
+/** MD3 outlined text field: 1dp outline, 2dp primary outline when focused. */
 const StyledInput = styled.input`
   width: 100%;
   box-sizing: border-box;
-  background: var(--input-bg);
+  background: transparent;
   border: none;
-  box-shadow: var(--bevel-in);
-  color: var(--text-primary);
-  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1px var(--md-outline);
+  color: var(--md-on-surface);
+  caret-color: var(--md-primary);
+  border-radius: var(--md-shape-xs);
   font-size: 16px;
-  padding: 0 10px;
+  line-height: 24px;
+  padding: 0 16px;
   outline: none;
+  transition: box-shadow 0.15s var(--md-ease-standard);
 
   &::placeholder {
-    color: var(--text-muted);
+    color: var(--md-on-surface-variant);
   }
 
-  &:focus {
-    box-shadow: inset 0 0 0 1px var(--accent);
+  &:hover:not(:focus) {
+    box-shadow: inset 0 0 0 1px var(--md-on-surface);
+  }
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--md-primary);
   }
 `;

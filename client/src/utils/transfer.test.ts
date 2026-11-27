@@ -3,13 +3,37 @@ import {
   MAX_CHUNK_BYTES,
   MAX_FILE_BYTES,
   MAX_FILENAME_LENGTH,
+  MAX_TEXT_CHARS,
   MAX_WS_MESSAGE_BYTES,
   frameByteLength,
   isTransferComplete,
   maxHeaderByteLength,
   pickChunkSize,
+  textSendProblem,
   wouldExceedExpectedSize,
 } from "./transfer";
+
+describe("textSendProblem", () => {
+  test("rejects blank text", () => {
+    expect(textSendProblem("")).toBe("empty");
+    expect(textSendProblem("  \n\t ")).toBe("empty");
+  });
+
+  test("accepts text up to the limit", () => {
+    expect(textSendProblem("hello")).toBeNull();
+    expect(textSendProblem("a".repeat(MAX_TEXT_CHARS))).toBeNull();
+  });
+
+  test("rejects text over the limit", () => {
+    expect(textSendProblem("a".repeat(MAX_TEXT_CHARS + 1))).toBe("too-long");
+  });
+
+  test("worst-case JSON-escaped text still fits one WebSocket frame", () => {
+    // "\u0000" escapes to 6 bytes per character.
+    const frame = JSON.stringify({ type: "text", text: "\u0000".repeat(MAX_TEXT_CHARS) });
+    expect(new TextEncoder().encode(frame).byteLength).toBeLessThan(MAX_WS_MESSAGE_BYTES);
+  });
+});
 
 const KB = 1024;
 const MB = 1024 * KB;

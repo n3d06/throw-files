@@ -6,10 +6,72 @@
 import styled, { css, keyframes } from "styled-components";
 import { Input } from "../../components";
 
-/** Springy ease-out with a little overshoot, used for pops and slides. */
-const spring = "cubic-bezier(0.34, 1.56, 0.64, 1)";
-/** Smooth ease-out without overshoot. */
-const easeOut = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+/** MD3 emphasized decelerate: things entering the screen. */
+const spring = "var(--md-ease-emphasized-decelerate)";
+/** MD3 standard easing: state changes on things already on screen. */
+const easeOut = "var(--md-ease-standard)";
+
+/** MD3 state layer: `color` at hover (8%) / pressed (10%) opacity. */
+const stateLayer = (color = "currentColor") => css`
+  &:hover:not(:disabled) {
+    background-color: color-mix(in srgb, ${color} 8%, transparent);
+  }
+  &:active:not(:disabled) {
+    background-color: color-mix(in srgb, ${color} 10%, transparent);
+  }
+`;
+
+/** Type scale roles used on this page. */
+const type = {
+  titleMedium: css`
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 500;
+    letter-spacing: 0.15px;
+  `,
+  titleSmall: css`
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+  `,
+  bodyLarge: css`
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+  `,
+  bodyMedium: css`
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    letter-spacing: 0.25px;
+  `,
+  bodySmall: css`
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+    letter-spacing: 0.4px;
+  `,
+  labelLarge: css`
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+  `,
+  labelMedium: css`
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  `,
+  labelSmall: css`
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  `,
+};
 
 export const fadeUp = keyframes`
   from { opacity: 0; transform: translateY(12px); }
@@ -22,9 +84,8 @@ export const bounce = keyframes`
 `;
 
 const popIn = keyframes`
-  0% { opacity: 0; transform: scale(0.4); }
-  60% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
 `;
 
 const flipIn = keyframes`
@@ -38,20 +99,11 @@ const slideIn = keyframes`
   100% { opacity: 1; transform: translateX(0) scale(1); }
 `;
 
-const beat = keyframes`
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.35); }
-`;
-
 const blink = keyframes`
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
 `;
 
-const float = keyframes`
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-`;
 
 const hop = keyframes`
   0%, 100% { transform: translateY(0); }
@@ -73,31 +125,33 @@ export const HomeComponent = styled.div`
 `;
 
 export const MainContainer = styled.div`
-  max-width: 660px;
+  max-width: 640px;
   margin: 0 auto;
   padding: 80px 16px 24px;
 
   &:focus:not(:focus-visible) {
     outline: none;
   }
+
+  @media (min-width: 600px) {
+    padding: 88px 24px 32px;
+  }
 `;
 
+/* MD3 discourages wrapping the whole page in a card: the content sits straight
+   on the surface and each group gets its own container where it needs one. */
 export const Panel = styled.section`
-  animation: ${fadeUp} 0.5s ${easeOut} both;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--bg-secondary);
-  box-shadow: var(--shadow-xl);
-  border-radius: var(--radius-lg);
 `;
 
 export const PanelBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   flex: 1;
-  padding: 16px;
+  padding: 0;
 
   /* Each block rises in a beat after the one above it. */
   > * {
@@ -107,20 +161,13 @@ export const PanelBody = styled.div`
     .map((n) => `> *:nth-child(${n}) { animation-delay: ${0.08 + n * 0.06}s; }`)
     .join("\n")}
 
-  @media (min-width: 600px) {
-    padding: 20px;
-  }
 `;
 
-/** Small uppercase heading above a group, like a settings-page section title. */
+/** Section heading: Title small in primary, like an MD3 list subheader. */
 export const SectionLabel = styled.h2`
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+  ${type.titleSmall}
+  color: var(--md-primary);
+  margin: 0 4px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -139,17 +186,16 @@ export const StatusRow = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 4px 16px;
-  padding: 10px 12px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-md);
 `;
 
 export const StatusLine = styled.div<{ $state: string }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  ${type.labelLarge}
   transition: color 0.3s;
   color: ${(p) =>
     p.$state === "open"
@@ -164,7 +210,7 @@ export const StatusLine = styled.div<{ $state: string }>`
   }
 `;
 
-/** Presence dot: a radar ring while live, a slow blink while reconnecting. */
+/** Presence dot: steady while connected or failed, a slow blink while connecting. */
 export const LiveDot = styled.i<{ $state: string }>`
   position: relative;
   width: 10px;
@@ -174,41 +220,33 @@ export const LiveDot = styled.i<{ $state: string }>`
   flex-shrink: 0;
 
   ${(p) =>
-    p.$state === "open"
-      ? css`
-          animation: ${beat} 1.6s ease-in-out infinite;
-        `
-      : p.$state === "failed"
-        ? css``
-        : css`
-            animation: ${blink} 1.1s ease-in-out infinite;
-          `}
+    (p.$state === "connecting" || p.$state === "reconnecting") &&
+    css`
+      animation: ${blink} 1.1s ease-in-out infinite;
+    `}
 `;
 
 export const DeviceCount = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  color: var(--text-tertiary);
-
-  svg {
-    color: var(--text-tertiary);
-  }
+  ${type.bodyMedium}
+  color: var(--md-on-surface-variant);
 `;
 
 export const CountPop = styled.b`
   display: inline-block;
-  color: var(--title-fg);
-  animation: ${popIn} 0.4s ${spring} both;
+  font-weight: 500;
+  color: var(--md-on-surface);
+  animation: ${popIn} 0.3s ${spring} both;
 `;
 
+/** The channel is the page's hero: a filled card in primary-container. */
 export const ChannelBox = styled.div<{ $focused?: boolean }>`
-  background: var(--bg-tertiary);
-  outline: ${(p) => (p.$focused ? "1px solid var(--accent)" : "none")};
-  outline-offset: -1px;
-  border-radius: var(--radius-lg);
-  padding: 8px 8px 8px 14px;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-radius: var(--md-shape-lg);
+  padding: 12px 12px 12px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -217,17 +255,19 @@ export const ChannelBox = styled.div<{ $focused?: boolean }>`
   @media (max-width: 480px) {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
-    padding: 14px;
+    gap: 8px;
+    padding: 16px;
   }
 `;
 
+/** Headline medium (28/36), monospaced so the code reads unambiguously. */
 export const ChannelCode = styled.span`
   font-family: var(--font-code);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: 3px;
-  color: var(--title-fg);
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 500;
+  letter-spacing: 4px;
+  color: var(--md-on-primary-container);
   flex: 1;
   min-width: 0;
   word-break: break-word;
@@ -239,15 +279,15 @@ export const ChannelCode = styled.span`
   &::before {
     content: "#";
     font-family: var(--font-display);
-    font-size: 24px;
-    font-weight: 500;
+    font-size: 28px;
+    font-weight: 400;
     letter-spacing: 0;
-    color: var(--text-muted);
+    opacity: 0.6;
   }
 
   @media (max-width: 360px) {
-    font-size: 20px;
-    letter-spacing: 1px;
+    font-size: 24px;
+    letter-spacing: 2px;
   }
 `;
 
@@ -277,68 +317,63 @@ export const SwapIcon = styled.span`
   animation: ${popIn} 0.35s ${spring} both;
 `;
 
+/**
+ * MD3 standard icon button: 40dp, round, inherits its container's content
+ * colour. A tick (`$success`) swaps in after a copy.
+ */
 export const IconButton = styled.button<{ $success?: boolean }>`
-  transition: background 0.15s, color 0.15s, transform 0.2s ${spring};
-  border-radius: var(--radius-md);
+  transition: background-color 0.15s ${easeOut}, color 0.15s ${easeOut};
+  border-radius: var(--md-shape-full);
   background: transparent;
   border: none;
-  color: ${(p) => (p.$success ? "var(--success)" : "var(--text-secondary)")};
-  min-width: 36px;
-  height: 36px;
+  color: ${(p) => (p.$success ? "var(--md-success)" : "inherit")};
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 
+  ${stateLayer()}
+
   svg {
-    transition: transform 0.25s ${spring};
-  }
-
-  &:hover {
-    background: var(--bg-modifier-hover);
-    color: ${(p) => (p.$success ? "var(--success)" : "var(--title-fg)")};
-  }
-
-  &:hover svg {
-    transform: scale(1.18) rotate(-8deg);
-  }
-
-  &:active {
-    background: var(--bg-modifier-active);
-    transform: scale(0.88);
+    width: 20px;
+    height: 20px;
   }
 `;
 
+/** MD3 filled tonal icon button. */
 export const IconButtonSecondary = styled(IconButton)`
-  height: 38px;
-  min-width: 38px;
-  background: var(--w-face);
-  color: #fff;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 
-  &:hover {
-    background: var(--hover-bg);
-    color: #fff;
+  &:hover:not(:disabled) {
+    background-color: color-mix(
+      in srgb,
+      var(--md-on-secondary-container) 8%,
+      var(--md-secondary-container)
+    );
   }
 
-  &:active {
-    background: var(--press-bg);
+  &:active:not(:disabled) {
+    background-color: color-mix(
+      in srgb,
+      var(--md-on-secondary-container) 10%,
+      var(--md-secondary-container)
+    );
   }
 `;
 
-/** The regenerate button: the arrows turn half a lap on hover, a full lap on press. */
+/** The regenerate button: the arrows turn a full lap on press. */
 export const RefreshButton = styled(IconButtonSecondary)`
   svg {
-    transition: transform 0.5s ${spring};
-  }
-
-  &:hover svg {
-    transform: rotate(180deg);
+    transition: transform 0.45s ${spring};
   }
 
   &:active svg {
-    transform: rotate(360deg);
-    transition-duration: 0.25s;
+    transform: rotate(180deg);
   }
 `;
 
@@ -348,8 +383,8 @@ export const InputWrapper = styled.div`
 
 export const JoinSection = styled.div`
   display: flex;
-  gap: 8px;
-  align-items: stretch;
+  gap: 12px;
+  align-items: center;
   margin-bottom: 0;
 
   @media (max-width: 600px) {
@@ -368,20 +403,14 @@ export const JoinSection = styled.div`
   }
 `;
 
+/** MD3 outlined text field, 56dp tall. */
 export const StyledInput = styled(Input)`
-  height: 38px;
+  height: 56px;
   font-family: var(--font-code);
   font-size: 16px;
-  letter-spacing: 2px;
-  border-radius: var(--radius-md);
+  letter-spacing: 3px;
   text-transform: uppercase;
-  font-weight: 600;
-  transition: box-shadow 0.2s, background 0.2s;
-
-  &:focus {
-    background: var(--input-focus-bg);
-    box-shadow: inset 0 0 0 1px var(--accent);
-  }
+  font-weight: 500;
 
   &::placeholder {
     font-family: var(--font-display);
@@ -397,17 +426,16 @@ export const TransferList = styled.div`
   gap: 8px;
 `;
 
-export const TransferItem = styled.div`
-  animation: ${slideIn} 0.45s ${spring} both;
-  background: var(--bg-primary);
-  border: 1px solid var(--bg-elevated);
-  border-radius: var(--radius-lg);
-  padding: 12px 14px;
-  transition: border-color 0.2s, transform 0.2s;
+/** MD3 filled card: the tonal surface does the separating, no border. */
+const filledCard = css`
+  background: var(--md-surface-container-high);
+  border-radius: var(--md-shape-md);
+`;
 
-  &:hover {
-    border-color: var(--border-subtle);
-  }
+export const TransferItem = styled.div`
+  animation: ${slideIn} 0.4s ${spring} both;
+  ${filledCard}
+  padding: 12px 8px 16px 16px;
 `;
 
 export const TransferItemHeader = styled.div`
@@ -415,56 +443,50 @@ export const TransferItemHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 `;
 
 export const FileNameWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 `;
 
 export const FileIconWrapper = styled.div<{ $receiving?: boolean }>`
   color: ${(p) =>
-    p.$receiving ? "var(--accent-secondary)" : "var(--accent-emerald)"};
+    p.$receiving ? "var(--md-primary)" : "var(--md-on-surface-variant)"};
   flex-shrink: 0;
   display: flex;
-  animation: ${popIn} 0.45s ${spring} 0.1s both;
+  animation: ${popIn} 0.3s ${spring} 0.1s both;
 `;
 
 export const FileNameText = styled.span`
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-link);
+  ${type.titleMedium}
+  color: var(--md-on-surface);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
+/** Small label in tertiary-container. */
 export const ZipBadge = styled.span`
-  font-size: 10px;
-  line-height: 15px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  padding: 0 5px;
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
+  ${type.labelSmall}
+  color: var(--md-on-tertiary-container);
+  background: var(--md-tertiary-container);
+  padding: 0 6px;
+  border-radius: var(--md-shape-xs);
   flex-shrink: 0;
-  animation: ${popIn} 0.4s ${spring} 0.2s both;
+  animation: ${popIn} 0.3s ${spring} 0.2s both;
 `;
 
 export const TransferStatus = styled.span<{ $receiving?: boolean }>`
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  ${type.labelMedium}
+  color: var(--md-on-surface-variant);
 `;
 
 export const StatusDot = styled.span<{ $receiving?: boolean }>`
@@ -472,130 +494,113 @@ export const StatusDot = styled.span<{ $receiving?: boolean }>`
   height: 8px;
   border-radius: 50%;
   background: ${(p) =>
-    p.$receiving ? "var(--accent-secondary)" : "var(--accent-emerald)"};
+    p.$receiving ? "var(--md-primary)" : "var(--md-on-surface-variant)"};
   animation: ${blink} 1s ease-in-out infinite;
 `;
 
+/** MD3 linear progress indicator: 4dp, rounded, secondary-container track. */
 export const ProgressTrack = styled.div`
-  height: 6px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
+  height: 4px;
+  background: var(--md-secondary-container);
+  border-radius: var(--md-shape-full);
   overflow: hidden;
-  margin-bottom: 8px;
+  margin: 0 8px 8px 0;
   position: relative;
 `;
 
 export const ProgressFill = styled.div`
+  /* Progress arrives once per chunk, many times a second: keep it linear and
+     short so the bar never lags behind the real byte count. */
   transition: width 0.2s linear;
   height: 100%;
-  background: var(--accent);
-  border-radius: var(--radius-sm);
-  /* Progress arrives once per chunk — many times a second. A 0.3s ease made the
-     bar visibly lag behind the real byte count. */
-  position: relative;
-  overflow: hidden;
-
+  background: var(--md-primary);
+  border-radius: var(--md-shape-full);
 `;
 
 export const ProgressInfo = styled.div`
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  margin-right: 8px;
+  ${type.labelMedium}
 `;
 
 export const ProgressPercent = styled.span`
-  color: var(--title-fg);
-  font-weight: 600;
+  color: var(--md-on-surface);
   font-variant-numeric: tabular-nums;
 `;
 
 export const ProgressSize = styled.span`
-  color: var(--text-muted);
+  color: var(--md-on-surface-variant);
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 `;
 
 export const SendButtonIcon = styled.div`
   display: flex;
-  animation: ${float} 2.4s ease-in-out infinite;
 `;
 
+/** Drop zone: an outlined card whose outline is dashed to invite a drop. */
 export const FileSection = styled.div<{ $dragging?: boolean }>`
   transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.3s ${spring};
+    background-color 0.2s ${easeOut},
+    border-color 0.2s ${easeOut};
   display: flex;
   flex-direction: column;
   align-items: center;
   flex: 1;
   justify-content: center;
-  min-height: 170px;
-  padding: 24px 12px;
-  background: var(--bg-primary);
-  border: 2px dashed var(--border-medium);
-  border-radius: var(--radius-lg);
-
-  &:hover {
-    border-color: var(--border-strong);
-  }
+  min-height: 184px;
+  padding: 24px 16px;
+  background: var(--md-surface-container-low);
+  border: 1px dashed var(--md-outline);
+  border-radius: var(--md-shape-lg);
 
   ${(p) =>
     p.$dragging &&
     css`
-      background: rgba(192, 57, 43, 0.12);
-      border-color: var(--accent);
-      transform: scale(1.02);
+      background: color-mix(in srgb, var(--md-primary) 16%, var(--md-surface-container-low));
+      border: 2px solid var(--md-primary);
+      padding: 23px 15px;
 
       ${SendButtonIcon} {
-        animation: ${hop} 0.9s ease-in-out infinite;
+        animation: ${hop} 0.9s ${easeOut} infinite;
       }
     `}
 `;
 
+/** Text button sized for an inline action. */
 export const BannerAction = styled.button`
-  transition: background 0.15s, transform 0.2s ${spring};
-  border-radius: var(--radius-sm);
-  background: var(--w-face);
-  border: none;
-  padding: 2px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--hover-bg);
-  }
-
-  &:active {
-    background: var(--press-bg);
-    transform: scale(0.92);
-  }
-`;
-
-export const CancelButton = styled.button`
-  transition: background 0.15s, color 0.15s, transform 0.25s ${spring};
-  border-radius: var(--radius-md);
+  ${type.labelLarge}
+  ${stateLayer()}
+  transition: background-color 0.15s ${easeOut};
+  border-radius: var(--md-shape-full);
   background: transparent;
   border: none;
-  width: 28px;
-  height: 28px;
+  height: 32px;
+  padding: 0 12px;
+  color: var(--md-primary);
+  cursor: pointer;
+`;
+
+/** Standard icon button for dismiss/cancel. */
+export const CancelButton = styled.button`
+  ${stateLayer()}
+  transition: background-color 0.15s ${easeOut};
+  border-radius: var(--md-shape-full);
+  background: transparent;
+  border: none;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  color: var(--text-tertiary);
+  color: var(--md-on-surface-variant);
 
-  &:hover {
-    background: var(--bg-modifier-hover);
-    color: var(--accent-coral);
-    transform: rotate(90deg);
-  }
-
-  &:active {
-    background: var(--bg-modifier-active);
-    transform: rotate(90deg) scale(0.85);
+  svg {
+    width: 20px;
+    height: 20px;
   }
 `;
 
@@ -606,33 +611,143 @@ export const ReadyList = styled.div`
 `;
 
 export const ReadyItem = styled.div`
-  animation: ${slideIn} 0.45s ${spring} both;
+  animation: ${slideIn} 0.4s ${spring} both;
+  ${filledCard}
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 10px 10px 10px 14px;
-  background: var(--bg-primary);
-  border: 1px solid var(--bg-elevated);
-  border-radius: var(--radius-lg);
+  gap: 16px;
+  padding: 8px 8px 8px 16px;
+  min-height: 56px;
 
   @media (max-width: 480px) {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
+    padding: 12px 8px 8px 16px;
   }
 `;
 
 export const ReadyActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 8px;
   flex-shrink: 0;
 `;
 
 export const ReadySize = styled.span`
-  font-size: 12px;
-  color: var(--text-muted);
+  ${type.bodySmall}
+  color: var(--md-on-surface-variant);
+  margin-right: 4px;
+`;
+
+// ── Text snippets ───────────────────────────────────────────────────────────
+
+export const TextComposer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+/** MD3 outlined text field, multi-line. */
+export const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 96px;
+  max-height: 240px;
+  resize: vertical;
+  padding: 16px;
+  font-family: inherit;
+  ${type.bodyLarge}
+  color: var(--md-on-surface);
+  caret-color: var(--md-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--md-shape-xs);
+  box-shadow: inset 0 0 0 1px var(--md-outline);
+  transition: box-shadow 0.15s ${easeOut};
+
+  &:hover:not(:focus):not(:disabled) {
+    box-shadow: inset 0 0 0 1px var(--md-on-surface);
+  }
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--md-primary);
+  }
+
+  &::placeholder {
+    color: var(--md-on-surface-variant);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--md-on-surface) 12%, transparent);
+  }
+`;
+
+export const TextComposerFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+/** Supporting text under the field (Body small). */
+export const TextHint = styled.span<{ $over?: boolean }>`
+  ${type.bodySmall}
+  margin-left: 16px;
+  color: ${(p) =>
+    p.$over ? "var(--md-error)" : "var(--md-on-surface-variant)"};
+  font-variant-numeric: tabular-nums;
+`;
+
+export const MessageList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+/** Received snippets sit on a neutral card, your own on secondary-container. */
+export const MessageItem = styled.div<{ $mine: boolean }>`
+  animation: ${slideIn} 0.4s ${spring} both;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 4px 12px 16px;
+  border-radius: var(--md-shape-md);
+  background: ${(p) =>
+    p.$mine
+      ? "var(--md-secondary-container)"
+      : "var(--md-surface-container-high)"};
+  color: ${(p) =>
+    p.$mine ? "var(--md-on-secondary-container)" : "var(--md-on-surface)"};
+
+  ${CancelButton} {
+    color: inherit;
+  }
+`;
+
+export const MessageBody = styled.div`
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+`;
+
+export const MessageMeta = styled.div`
+  ${type.labelMedium}
+  opacity: 0.8;
+  margin-bottom: 4px;
+`;
+
+export const MessageText = styled.div`
+  ${type.bodyLarge}
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 200px;
+  overflow-y: auto;
 `;
 
 export const LoadingDotsWrapper = styled.div`
@@ -644,7 +759,7 @@ export const LoadingDot = styled.div`
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--md-primary);
   animation: ${bounce} 1.4s ease-in-out infinite both;
 
   &:nth-of-type(1) {
@@ -659,49 +774,59 @@ export const SendButtonWrapper = styled.div`
   text-align: center;
 `;
 
+/** The screen's main action, so it is an MD3 Extended FAB (56dp, level 3). */
 export const SendButton = styled.button`
-  transition:
-    background 0.17s,
-    transform 0.25s ${spring};
-  background: var(--accent);
-  color: #fff;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: box-shadow 0.2s ${easeOut};
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
   border: none;
-  border-radius: var(--radius-md);
-  height: 44px;
-  padding: 0 24px;
-  font-size: 16px;
-  font-weight: 500;
+  border-radius: var(--md-shape-lg);
+  height: 56px;
+  min-width: 80px;
+  padding: 0 20px 0 16px;
+  ${type.labelLarge}
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  box-shadow: var(--md-elevation-3);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.15s ${easeOut};
+  }
 
   &:hover:not(:disabled) {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
+    box-shadow: var(--md-elevation-3), 0 6px 10px 4px rgba(0, 0, 0, 0.15);
   }
 
-  &:hover:not(:disabled) ${SendButtonIcon} {
-    animation: ${hop} 0.9s ease-in-out infinite;
+  &:hover:not(:disabled)::before {
+    opacity: 0.08;
   }
 
-  &:active:not(:disabled) {
-    background: #922b21;
-    transform: translateY(0) scale(0.97);
+  &:active:not(:disabled)::before,
+  &:focus-visible::before {
+    opacity: 0.1;
   }
 
   &:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
+    color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
   }
 
-  &:disabled ${SendButtonIcon} {
-    animation: none;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--text-link);
-    outline-offset: 2px;
+  svg {
+    width: 24px;
+    height: 24px;
   }
 
   @media (max-width: 480px) {
@@ -713,44 +838,34 @@ export const SendButton = styled.button`
 export const SendButtonText = styled.span``;
 
 export const PasteHint = styled.p`
-  margin-top: 14px;
-  font-size: 14px;
-  color: var(--text-tertiary);
-
-  @media (max-width: 480px) {
-    font-size: 13px;
-  }
+  margin-top: 16px;
+  ${type.bodyMedium}
+  color: var(--md-on-surface-variant);
 `;
 
 export const PasteText = styled.span`
-  color: var(--text-link);
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  color: var(--md-primary);
+  font-weight: 500;
 `;
 
+/** MD3 two-line-ish list item: 56dp, leading avatar, state layer on hover. */
 export const InlineHistoryItem = styled.div`
-  animation: ${slideIn} 0.4s ${easeOut} both;
+  animation: ${slideIn} 0.4s ${spring} both;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 8px;
-  border-radius: var(--radius-md);
-  transition: background 0.15s, transform 0.2s ${easeOut};
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 16px;
+  border-radius: var(--md-shape-md);
+  transition: background-color 0.15s ${easeOut};
+  ${stateLayer("var(--md-on-surface)")}
 
   &:nth-of-type(2) {
-    animation-delay: 0.06s;
+    animation-delay: 0.05s;
   }
   &:nth-of-type(3) {
-    animation-delay: 0.12s;
-  }
-
-  &:hover {
-    background: var(--bg-modifier-hover);
-    transform: translateX(4px);
+    animation-delay: 0.1s;
   }
 
   @media (max-width: 400px) {
@@ -763,36 +878,34 @@ export const InlineHistoryItem = styled.div`
 export const InlineLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
 `;
 
+/** Tonal avatar colours: received in primary, sent in secondary. */
 const directionBadge = (type: "sent" | "received") => css`
-  background: ${type === "sent" ? "var(--success)" : "var(--accent)"};
-  color: #fff;
+  background: ${type === "sent"
+    ? "var(--md-secondary-container)"
+    : "var(--md-primary-container)"};
+  color: ${type === "sent"
+    ? "var(--md-on-secondary-container)"
+    : "var(--md-on-primary-container)"};
 `;
 
 export const InlineStatusBadge = styled.span<{ $type: "sent" | "received" }>`
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   ${(p) => directionBadge(p.$type)}
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: border-radius 0.25s ${easeOut};
-
-  /* Round avatars soften into squircles on hover. */
-  ${InlineHistoryItem}:hover & {
-    border-radius: 35%;
-  }
 `;
 
 export const InlineFileName = styled.span`
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--title-fg);
+  ${type.bodyLarge}
+  color: var(--md-on-surface);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -801,22 +914,19 @@ export const InlineFileName = styled.span`
 export const InlineRight = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-shrink: 0;
 `;
 
 export const InlineTime = styled.span`
-  font-size: 12px;
-  color: var(--text-muted);
+  ${type.labelSmall}
+  color: var(--md-on-surface-variant);
 `;
 
 const typeTag = css`
-  font-size: 10px;
-  line-height: 15px;
-  font-weight: 600;
-  padding: 0 5px;
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
+  ${type.labelSmall}
+  padding: 0 6px;
+  border-radius: var(--md-shape-xs);
 `;
 
 export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
@@ -824,105 +934,74 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
   ${(p) => directionBadge(p.$type)}
 `;
 
+/** MD3 outlined button, full width. */
 export const ViewAllButton = styled.button`
-  transition: background 0.15s, transform 0.2s ${spring};
-  border-radius: var(--radius-md);
-  background: var(--w-face);
-  border: none;
-  height: 32px;
+  ${type.labelLarge}
+  ${stateLayer("var(--md-primary)")}
+  transition: background-color 0.15s ${easeOut};
+  border-radius: var(--md-shape-full);
+  background: transparent;
+  border: 1px solid var(--md-outline);
+  height: 40px;
   width: 100%;
-  font-size: 14px;
-  font-weight: 500;
-  color: #fff;
+  color: var(--md-primary);
   cursor: pointer;
-
-  &:hover {
-    background: var(--hover-bg);
-  }
-
-  &:active {
-    background: var(--press-bg);
-    transform: scale(0.98);
-  }
 `;
 
 export const Footer = styled.div`
-  margin-top: 16px;
+  margin-top: 24px;
   text-align: center;
-  animation: ${fadeUp} 0.5s ${easeOut} 0.6s both;
+  animation: ${fadeUp} 0.5s ${spring} 0.6s both;
 `;
 
 export const FooterLinks = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  font-size: 12px;
-  color: var(--text-muted);
+  gap: 8px;
+  ${type.bodySmall}
+  color: var(--md-on-surface-variant);
   flex-wrap: wrap;
-
-  a {
-    color: inherit;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-
-    &:hover {
-      color: var(--text-link);
-    }
-  }
-
-  @media (max-width: 480px) {
-    gap: 12px;
-  }
 `;
 
+/** Text-button-like footer link with a state layer. */
 export const FooterLink = styled.a`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-tertiary);
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--md-shape-full);
+  color: var(--md-on-surface-variant);
   text-decoration: none;
-  transition: color 0.15s, transform 0.2s ${spring};
-
-  &:hover {
-    color: var(--text-link);
-    text-decoration: underline;
-    transform: translateY(-2px);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--text-link);
-    outline-offset: 2px;
-    border-radius: var(--radius-sm);
-  }
+  transition: background-color 0.15s ${easeOut};
+  ${stateLayer("var(--md-on-surface-variant)")}
 `;
 
 // Modal Components
 export const ModalTitle = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 `;
 
 export const HistoryWrapper = styled.div`
   display: flex;
   align-items: center;
-  color: var(--text-tertiary);
+  color: var(--md-secondary);
 `;
 
+/** MD3 large badge: 16dp, error colours. */
 export const CountBadge = styled.span`
-  background: var(--accent-coral);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 16px;
+  background: var(--md-error);
+  color: var(--md-on-error);
+  ${type.labelSmall}
   min-width: 16px;
-  padding: 0 5px;
-  border-radius: 8px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--md-shape-full);
   text-align: center;
-  animation: ${popIn} 0.4s ${spring} 0.15s both;
+  animation: ${popIn} 0.3s ${spring} 0.15s both;
 `;
 
 export const ModalFooter = styled.div`
@@ -931,110 +1010,109 @@ export const ModalFooter = styled.div`
   gap: 8px;
 `;
 
+/** All / Sent / Received narrow one list, so they are MD3 filter chips. */
 export const TabBar = styled.div`
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  padding-bottom: 12px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 16px;
 `;
 
 export const TabButton = styled.button<{ $active: boolean }>`
-  transition: background 0.2s, color 0.2s, transform 0.2s ${spring};
-  padding: 2px 10px;
+  ${type.labelLarge}
+  transition: background-color 0.15s ${easeOut}, box-shadow 0.15s ${easeOut};
+  height: 32px;
+  padding: 0 16px;
   border: none;
-  background: ${(p) => (p.$active ? "var(--bg-modifier-active)" : "transparent")};
-  color: ${(p) => (p.$active ? "var(--title-fg)" : "var(--text-tertiary)")};
+  border-radius: var(--md-shape-sm);
   cursor: pointer;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 24px;
-  border-radius: var(--radius-md);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  background: ${(p) =>
+    p.$active ? "var(--md-secondary-container)" : "transparent"};
+  color: ${(p) =>
+    p.$active
+      ? "var(--md-on-secondary-container)"
+      : "var(--md-on-surface-variant)"};
+  box-shadow: ${(p) =>
+    p.$active ? "none" : "inset 0 0 0 1px var(--md-outline-variant)"};
 
   &:hover {
-    background: var(--bg-modifier-hover);
-    color: var(--text-primary);
-  }
-
-  &:active {
-    transform: scale(0.94);
+    background-color: ${(p) =>
+      p.$active
+        ? "color-mix(in srgb, var(--md-on-secondary-container) 8%, var(--md-secondary-container))"
+        : "color-mix(in srgb, var(--md-on-surface-variant) 8%, transparent)"};
   }
 `;
 
 export const TabCount = styled.span<{ $active: boolean }>`
-  color: var(--text-muted);
-  font-size: 12px;
+  ${type.labelMedium}
+  opacity: 0.8;
 `;
 
 export const EmptyState = styled.div`
   text-align: center;
   padding: 32px 16px;
-  animation: ${fadeUp} 0.4s ${easeOut} both;
+  animation: ${fadeUp} 0.4s ${spring} both;
 `;
 
 export const EmptyIconWrapper = styled.div`
   width: 64px;
   height: 64px;
   margin: 0 auto 16px;
-  background: var(--bg-secondary);
-  border-radius: 50%;
+  background: var(--md-surface-container-highest);
+  border-radius: var(--md-shape-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  animation: ${float} 3s ease-in-out infinite;
+  color: var(--md-on-surface-variant);
 `;
 
 export const EmptyTitle = styled.div`
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--title-fg);
+  ${type.titleMedium}
+  color: var(--md-on-surface);
   margin-bottom: 4px;
 `;
 
 export const EmptySubtitle = styled.div`
-  font-size: 14px;
-  color: var(--text-tertiary);
+  ${type.bodyMedium}
+  color: var(--md-on-surface-variant);
 `;
 
 export const HistoryList = styled.div`
   max-height: 480px;
   overflow-y: auto;
+  margin: 0 -8px;
 `;
 
 export const HistoryItem = styled.div`
-  animation: ${slideIn} 0.35s ${easeOut} both;
+  animation: ${slideIn} 0.35s ${spring} both;
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 12px;
   align-items: center;
+  min-height: 56px;
   padding: 8px;
-  border-radius: var(--radius-md);
-  transition: background 0.15s;
+  border-radius: var(--md-shape-md);
+  transition: background-color 0.15s ${easeOut};
+  ${stateLayer("var(--md-on-surface)")}
 
   ${Array.from({ length: 10 }, (_, i) => i + 2)
     .map((n) => `&:nth-child(${n}) { animation-delay: ${(n - 1) * 0.035}s; }`)
     .join("\n")}
-
-  &:hover {
-    background: var(--bg-modifier-hover);
-  }
 `;
 
 export const HistoryItemLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 `;
 
 export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   ${(p) => directionBadge(p.$type)}
   display: flex;
@@ -1046,12 +1124,12 @@ export const StatusBadge = styled.span<{ $type: "sent" | "received" }>`
 export const HistoryItemRight = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 `;
 
 export const MetaText = styled.span`
-  font-size: 12px;
-  color: var(--text-muted);
+  ${type.labelSmall}
+  color: var(--md-on-surface-variant);
 `;
 
 export const TypeBadge = styled.span<{ $type: "sent" | "received" }>`
@@ -1060,19 +1138,20 @@ export const TypeBadge = styled.span<{ $type: "sent" | "received" }>`
 `;
 
 export const FileSizeText = styled.span`
-  font-size: 12px;
-  min-width: 52px;
+  ${type.bodySmall}
+  min-width: 56px;
   text-align: right;
-  color: var(--text-muted);
+  color: var(--md-on-surface-variant);
 `;
 
-// Toast Components — a stacked pile that fans out on hover.
-export const TOAST_HEIGHT = 60;
+// Toasts are MD3 snackbars (inverse surface, 4dp corners), stacked into a pile
+// that fans out on hover.
+export const TOAST_HEIGHT = 64;
 export const TOAST_GAP = 8;
 /** How far each older toast peeks out above the one in front of it. */
 export const TOAST_PEEK = 10;
 
-const toastEase = "cubic-bezier(0.21, 1.02, 0.73, 1)";
+const toastEase = "var(--md-ease-emphasized-decelerate)";
 
 export const ToastContainerWrapper = styled.div<{ $expanded: boolean }>`
   position: fixed;
@@ -1080,7 +1159,7 @@ export const ToastContainerWrapper = styled.div<{ $expanded: boolean }>`
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
-  width: min(360px, calc(100vw - 32px));
+  width: min(400px, calc(100vw - 32px));
   transition: height 0.4s ${toastEase};
   /* Collapsed, only the toasts themselves catch the pointer. Expanded, the
      whole box does, so the gaps between fanned-out toasts don't count as
@@ -1112,9 +1191,12 @@ export const ToastItem = styled.div<ToastItemProps>`
   right: 0;
   bottom: 0;
   height: ${TOAST_HEIGHT}px;
-  background: var(--floating-bg);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--floating-shadow);
+  /* Inverse-surface snackbar, tinted with the toast type colour so success,
+     info, warning and error read apart at a glance. */
+  background: color-mix(in srgb, var(--toast-color, transparent) 18%, var(--md-inverse-surface));
+  color: var(--md-inverse-on-surface);
+  border-radius: var(--md-shape-xs);
+  box-shadow: var(--md-elevation-3);
   overflow: hidden;
   transform-origin: center bottom;
   will-change: transform, opacity;
@@ -1123,8 +1205,8 @@ export const ToastItem = styled.div<ToastItemProps>`
   opacity: ${(p) => (!p.$visible || p.$leaving || p.$hidden ? 0 : 1)};
   pointer-events: ${(p) => (p.$hidden || p.$leaving ? "none" : "auto")};
   transition:
-    transform 0.45s ${toastEase},
-    opacity 0.35s ease;
+    transform 0.4s ${toastEase},
+    opacity 0.3s var(--md-ease-standard);
 `;
 
 export const ToastInner = styled.div<{ $muted: boolean }>`
@@ -1132,21 +1214,26 @@ export const ToastInner = styled.div<{ $muted: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 8px 0 12px;
+  padding: 0 4px 0 16px;
   opacity: ${(p) => (p.$muted ? 0 : 1)};
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s var(--md-ease-standard);
 `;
 
 export const ToastIconWrapper = styled.div`
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  animation: ${popIn} 0.5s ${spring} 0.15s both;
+  animation: ${popIn} 0.3s ${spring} 0.15s both;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
 `;
 
 export const ToastContent = styled.div`
@@ -1155,42 +1242,35 @@ export const ToastContent = styled.div`
 `;
 
 export const ToastTitle = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 18px;
-  color: var(--title-fg);
+  ${type.labelLarge}
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
 export const ToastText = styled.div`
-  font-size: 13px;
-  line-height: 17px;
-  color: var(--text-tertiary);
+  ${type.bodyMedium}
+  opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
+/** Snackbar close affordance: a standard icon button on the inverse surface. */
 export const ToastClose = styled.button`
-  transition: background 0.15s, color 0.15s, transform 0.25s ${spring};
-  border-radius: var(--radius-md);
+  ${stateLayer()}
+  transition: background-color 0.15s ${easeOut};
+  border-radius: var(--md-shape-full);
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
+  color: inherit;
   cursor: pointer;
-  padding: 6px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-
-  &:hover {
-    background: var(--bg-modifier-hover);
-    color: var(--text-primary);
-    transform: rotate(90deg);
-  }
 `;
 
 /** Time-left bar along the bottom edge; freezes while the stack is hovered. */
@@ -1208,18 +1288,21 @@ export const ToastTimer = styled.div<{ $duration: number; $paused: boolean }>`
 
 export const SkipToContent = styled.a`
   position: absolute;
-  top: -40px;
-  left: 0;
-  background: var(--accent-primary);
-  color: #fff;
-  padding: 8px 16px;
+  top: -48px;
+  left: 8px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  ${type.labelLarge}
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 24px;
   z-index: 9999;
   text-decoration: none;
-  font-weight: 600;
-  border-radius: 0 0 var(--radius-md) 0;
+  border-radius: var(--md-shape-full);
 
   &:focus {
-    top: 0;
+    top: 12px;
   }
 `;
 
@@ -1243,7 +1326,7 @@ const tickThump = keyframes`
 export const QrStage = styled.div<{ $scanned: boolean }>`
   position: relative;
   aspect-ratio: 1;
-  border-radius: var(--radius-md);
+  border-radius: var(--md-shape-lg);
   background: ${(p) => (p.$scanned ? "transparent" : "#fff")};
   transition: background 0.4s ease 0.15s;
 
@@ -1271,7 +1354,7 @@ export const QrTick = styled.div`
   }
 
   .disc {
-    fill: var(--success);
+    fill: var(--md-success);
     transform-origin: 50% 50%;
     transform-box: fill-box;
     animation: ${tickDisc} 0.5s ${spring} 0.3s both;
@@ -1279,7 +1362,7 @@ export const QrTick = styled.div`
 
   .mark {
     fill: none;
-    stroke: #fff;
+    stroke: var(--md-on-success);
     stroke-width: 5;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -1291,7 +1374,8 @@ export const QrTick = styled.div`
 
 export const QrCaption = styled.p<{ $scanned: boolean }>`
   margin-top: 12px;
-  font-size: 12px;
+  ${type.bodySmall}
+  color: var(--md-on-surface-variant);
   word-break: break-all;
   text-align: center;
   transition: opacity 0.3s, transform 0.3s;

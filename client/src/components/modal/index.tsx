@@ -8,9 +8,8 @@ const fadeIn = keyframes`
 `;
 
 const popIn = keyframes`
-  0% { opacity: 0; transform: scale(0.7); }
-  60% { opacity: 1; transform: scale(1.03); }
-  100% { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 `;
 
 const fadeOut = keyframes`
@@ -18,14 +17,13 @@ const fadeOut = keyframes`
   to { opacity: 0; }
 `;
 
-/** Closing: the dialog sinks down and fades out. */
+/** Closing: the dialog fades and shrinks slightly. */
 const dropOut = keyframes`
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  25% { opacity: 1; transform: translateY(-6px) scale(1.01); }
-  100% { opacity: 0; transform: translateY(60px) scale(0.92); }
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
 `;
 
-const CLOSE_MS = 320;
+const CLOSE_MS = 200;
 
 interface ModalProps {
   visible: boolean;
@@ -161,8 +159,8 @@ export const Modal = ({
 const Overlay = styled.div<{ $closing: boolean }>`
   animation: ${(p) =>
     p.$closing
-      ? css`${fadeOut} ${CLOSE_MS}ms ease both`
-      : css`${fadeIn} 0.18s ease both`};
+      ? css`${fadeOut} ${CLOSE_MS}ms var(--md-ease-emphasized-accelerate) both`
+      : css`${fadeIn} 0.2s var(--md-ease-standard) both`};
   pointer-events: ${(p) => (p.$closing ? "none" : "auto")};
   position: fixed;
   inset: 0;
@@ -170,77 +168,87 @@ const Overlay = styled.div<{ $closing: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
+  /* MD3 scrim: 32% black. */
   background: var(--overlay);
-  backdrop-filter: blur(3px);
-
 `;
 
+/** MD3 basic dialog: surface-container-high, extra-large (28dp) corners. */
 const Box = styled.div<{ $closing: boolean }>`
   animation: ${(p) =>
     p.$closing
-      ? css`${dropOut} ${CLOSE_MS}ms cubic-bezier(0.5, 0, 0.75, 0) both`
-      : css`${popIn} 0.35s cubic-bezier(0.34, 1.3, 0.64, 1) both`};
-  background: var(--bg-primary);
-  box-shadow: var(--shadow-xl), var(--shadow-lg);
-  border-radius: var(--radius-lg);
+      ? css`${dropOut} ${CLOSE_MS}ms var(--md-ease-emphasized-accelerate) both`
+      : css`${popIn} 0.4s var(--md-ease-emphasized-decelerate) both`};
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  box-shadow: var(--md-elevation-3);
+  border-radius: var(--md-shape-xl);
   overflow: hidden;
+  min-width: min(280px, 100%);
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - 40px);
+  max-height: calc(100dvh - 48px);
 `;
 
 const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 12px 0 16px;
-  min-height: 48px;
+  gap: 16px;
+  padding: 24px 16px 0 24px;
   flex-shrink: 0;
 `;
 
-const Title = styled.div`
-  font-weight: 600;
-  font-size: 20px;
-  line-height: 24px;
-  color: var(--title-fg);
+/** Headline small: 24/32, regular weight. */
+const Title = styled.h2`
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: 0;
+  color: var(--md-on-surface);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 `;
 
+/** Standard icon button: 40dp with a round state layer. */
 const CloseBtn = styled.button`
-  transition: color 0.15s, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--text-tertiary);
-  font-size: 14px;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
+  color: var(--md-on-surface-variant);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--md-shape-full);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s var(--md-ease-standard);
 
   &:hover {
-    color: var(--text-primary);
-    transform: rotate(90deg);
+    background: color-mix(in srgb, var(--md-on-surface-variant) 8%, transparent);
   }
 
+  &:active {
+    background: color-mix(in srgb, var(--md-on-surface-variant) 10%, transparent);
+  }
 `;
 
+/** Body medium in on-surface-variant. */
 const Body = styled.div`
-  padding: 12px 16px 20px;
-  color: var(--text-secondary);
+  padding: 16px 24px 24px;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+  color: var(--md-on-surface-variant);
   overflow-y: auto;
   flex: 1;
 `;
 
 const Footer = styled.div`
-  padding: 16px;
-  background: var(--bg-secondary);
+  padding: 0 24px 24px;
   display: flex;
   justify-content: flex-end;
   gap: 8px;

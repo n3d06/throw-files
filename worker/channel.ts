@@ -18,6 +18,9 @@ const MAX_CHANNEL_SOCKETS = 8;
 /** Must match MAX_WS_MESSAGE_BYTES in client/src/utils/transfer.ts. */
 const MAX_MESSAGE_BYTES = 1024 * 1024;
 
+/** Must match MAX_TEXT_CHARS in client/src/utils/transfer.ts. */
+const MAX_TEXT_CHARS = 50_000;
+
 /**
  * Durable Object that relays one channel's WebSocket traffic.
  *
@@ -143,6 +146,22 @@ export class ThrowFilesChannel {
           ws,
         );
         break;
+      // A text snippet goes out in one control frame — no chunking needed.
+      case "text": {
+        const text = msg.text;
+        if (typeof text !== "string" || !text.trim()) break;
+        if (text.length > MAX_TEXT_CHARS) break;
+        this.broadcast(
+          {
+            type: "text",
+            channel,
+            id: String(msg.id ?? ""),
+            text,
+          },
+          ws,
+        );
+        break;
+      }
       case "file-abort":
         this.broadcast(
           {

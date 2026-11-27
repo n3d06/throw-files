@@ -14,15 +14,28 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#c0392b" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#1a73e8" />
     <link rel="manifest" href="/manifest.json" />
 
-    <meta name="msapplication-TileColor" content="#c0392b" />
+    <meta name="msapplication-TileColor" content="#1a73e8" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="throw-files" />
-    <meta name="theme-color" content="#313338" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f1f23" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f8f8fa" media="(prefers-color-scheme: light)" />
     <meta name="color-scheme" content="light dark" />
+    <!-- Apply a saved light/dark choice before first paint (see src/utils/theme.ts). -->
+    <script>
+      try {
+        var t = localStorage.getItem("throwmyfile-theme");
+        if (t === "light" || t === "dark") {
+          document.documentElement.dataset.theme = t;
+          var c = t === "dark" ? "#1f1f23" : "#f8f8fa";
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+            m.content = c;
+          });
+        }
+      } catch (e) {}
+    </script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />

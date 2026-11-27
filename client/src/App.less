@@ -1,7 +1,10 @@
-/* Dark chat-app look: layered charcoal surfaces, red accent (matches the favicon), 4px buttons,
-   8px panels, small uppercase section labels. Variable names from earlier
-   revisions are kept so components that only read colours keep working.
-   No remote font import: system fonts only. */
+/* Material Design 3 theme.
+   Surfaces, text and outlines are neutral greys taken from the browser's own
+   chrome (dark: tab strip #1f1f23, toolbar #39393b). The only hue is a Google
+   blue accent (primary #a8c7fa dark / #0b57d0 light) for primary actions,
+   the channel card and links. Status keeps its colours: green, amber, red.
+   Components read the --md-* roles; the older names further down are aliases
+   onto them. System fonts only: no remote font import. */
 
 *,
 *::before,
@@ -12,153 +15,213 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --w-face: #4e5058; /* secondary button surface */
-  --w-light: #35373c; /* hover rows, drop-zone highlight */
-  --w-field: #1e1f22;
+  /* ── MD3 colour roles: dark scheme (default) ───────────────────────────── */
+  --md-primary: #a8c7fa;
+  --md-on-primary: #062e6f;
+  --md-primary-container: #0842a0;
+  --md-on-primary-container: #d3e3fd;
+  --md-secondary: #c4c6cc;
+  --md-on-secondary: #2e3035;
+  --md-secondary-container: #46474b;
+  --md-on-secondary-container: #e3e3e8;
+  --md-tertiary: #c4c6cc;
+  --md-on-tertiary: #2e3035;
+  --md-tertiary-container: #4a4a4e;
+  --md-on-tertiary-container: #e3e3e6;
+  --md-error: #ffb4ab;
+  --md-on-error: #690005;
+  --md-error-container: #93000a;
+  --md-on-error-container: #ffdad6;
+  /* Neutral greys matching the browser's own dark chrome: the page is the tab
+     strip (#1f1f23), the highest card the toolbar (#39393b). */
+  --md-surface: #1f1f23;
+  --md-surface-dim: #1f1f23;
+  --md-surface-bright: #444448;
+  --md-surface-container-lowest: #19191c;
+  --md-surface-container-low: #27272b;
+  --md-surface-container: #2c2c30;
+  --md-surface-container-high: #333336;
+  --md-surface-container-highest: #39393b;
+  --md-on-surface: #e3e3e6;
+  --md-on-surface-variant: #bbbbbd;
+  --md-outline: #848486;
+  --md-outline-variant: #5c5c5f;
+  --md-inverse-surface: #e3e3e6;
+  --md-inverse-on-surface: #2c2c30;
+  --md-inverse-primary: #0b57d0;
+  /* Not MD3 baseline roles: Google green for "connected"/"saved", amber for warnings. */
+  --md-success: #6dd58c;
+  --md-on-success: #0a3818;
+  --md-warning: #f2c35b;
+
+  /* ── Shape scale ───────────────────────────────────────────────────────── */
+  --md-shape-xs: 4px;
+  --md-shape-sm: 8px;
+  --md-shape-md: 12px;
+  --md-shape-lg: 16px;
+  --md-shape-xl: 28px;
+  --md-shape-full: 9999px;
+
+  /* ── Elevation: shadow part (tone comes from the surface-container level) ─ */
+  --md-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --md-elevation-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --md-elevation-3: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
+
+  /* ── Motion ────────────────────────────────────────────────────────────── */
+  --md-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* ── Type ──────────────────────────────────────────────────────────────── */
+  --font-display: Roboto, "Roboto Flex", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-code: "Roboto Mono", "Cascadia Mono", Consolas, "SF Mono", Menlo,
+    "Courier New", monospace;
+
+  /* ── Legacy aliases onto the MD3 roles ─────────────────────────────────── */
+  --w-face: var(--md-secondary-container);
+  --w-face-fg: var(--md-on-secondary-container);
+  --w-light: var(--md-surface-container-high);
+  --w-field: var(--md-surface-container-highest);
   --w-title: transparent;
-  --title-fg: #f2f3f5;
-  --accent: #c0392b;
-  --accent-hover: #a93226;
+  --title-fg: var(--md-on-surface);
+  --accent: var(--md-primary);
+  --accent-fg: var(--md-on-primary);
+  --accent-hover: color-mix(in srgb, var(--md-primary) 92%, var(--md-on-primary));
 
-  /* Border tokens (names from the earlier bevel revision). */
   --bevel-out: none;
   --bevel-in: none;
   --bevel-etch: none;
-  --hover-bg: #6d6f78;
+  --hover-bg: color-mix(in srgb, var(--md-secondary-container) 92%, var(--md-on-secondary-container));
   --hover-shadow: none;
-  --press-bg: #80848e;
+  --press-bg: color-mix(in srgb, var(--md-secondary-container) 90%, var(--md-on-secondary-container));
   --press-shadow: none;
 
-  --radius-sm: 3px;
-  --radius-pill: 4px;
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 8px;
+  --radius-sm: var(--md-shape-xs);
+  --radius-pill: var(--md-shape-full);
+  --radius-md: var(--md-shape-sm);
+  --radius-lg: var(--md-shape-md);
+  --radius-xl: var(--md-shape-lg);
 
-  --bg-primary: #313338; /* main area */
-  --bg-secondary: #2b2d31; /* panels */
-  --bg-tertiary: #1e1f22; /* inputs, deepest layer */
-  --bg-elevated: #232428;
-  --bg-glass: #2b2d31;
-  --bg-glass-hover: #35373c;
-  --bg-card: #2b2d31;
-  --bg-card-hover: #35373c;
-  --bg-modifier-hover: rgba(78, 80, 88, 0.3);
-  --bg-modifier-active: rgba(78, 80, 88, 0.48);
+  --bg-primary: var(--md-surface-container);
+  --bg-secondary: var(--md-surface-container-low);
+  --bg-tertiary: var(--md-surface-container-highest);
+  --bg-elevated: var(--md-surface-container-high);
+  --bg-glass: var(--md-surface-container-low);
+  --bg-glass-hover: var(--md-surface-container);
+  --bg-card: var(--md-surface-container-low);
+  --bg-card-hover: var(--md-surface-container);
+  --bg-modifier-hover: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+  --bg-modifier-active: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
 
-  --accent-primary: #c0392b;
-  --accent-secondary: #e57368;
-  --accent-tertiary: #e57368;
-  --accent-deep: #a93226;
-  --accent-emerald: #23a55a;
-  --accent-coral: #f23f43;
-  --accent-sky: #00a8fc;
-  --accent-amber: #f0b232;
+  --accent-primary: var(--md-primary);
+  --accent-secondary: var(--md-primary);
+  --accent-tertiary: var(--md-tertiary);
+  --accent-deep: var(--md-primary-container);
+  --accent-emerald: var(--md-success);
+  --accent-coral: var(--md-error);
+  --accent-sky: var(--md-tertiary);
+  --accent-amber: var(--md-warning);
 
-  --accent-gradient: #c0392b;
-  --accent-gradient-2: #c0392b;
-  --accent-gradient-3: #c0392b;
+  --accent-gradient: var(--md-primary);
+  --accent-gradient-2: var(--md-primary);
+  --accent-gradient-3: var(--md-primary);
   --accent-glow: transparent;
   --accent-glow-strong: transparent;
 
-  --success: #23a55a;
-  --success-hover: #1a8346;
+  --success: var(--md-success);
+  --success-fg: var(--md-on-success);
+  --success-hover: color-mix(in srgb, var(--md-success) 92%, var(--md-on-success));
   --success-glow: transparent;
-  --danger: #da373c;
-  --danger-hover: #a12828;
-  --warning: #f0b232;
+  --danger: var(--md-error);
+  --danger-fg: var(--md-on-error);
+  --danger-hover: color-mix(in srgb, var(--md-error) 92%, var(--md-on-error));
+  --warning: var(--md-warning);
 
-  --text-primary: #dbdee1;
-  --text-secondary: #b5bac1;
-  --text-tertiary: #949ba4;
-  --text-muted: #80848e;
-  --text-link: #00a8fc;
+  --text-primary: var(--md-on-surface);
+  --text-secondary: var(--md-on-surface-variant);
+  --text-tertiary: var(--md-on-surface-variant);
+  --text-muted: var(--md-outline);
+  --text-link: var(--md-primary);
 
-  --border-subtle: #3f4147;
-  --border-medium: #4e5058;
-  --border-strong: #6d6f78;
-  --border-accent: #c0392b;
+  --border-subtle: var(--md-outline-variant);
+  --border-medium: var(--md-outline-variant);
+  --border-strong: var(--md-outline);
+  --border-accent: var(--md-primary);
 
-  --shadow-sm: 0 1px 0 rgba(4, 4, 5, 0.2), 0 1.5px 0 rgba(6, 6, 7, 0.05),
-    0 2px 0 rgba(4, 4, 5, 0.05);
-  --shadow-md: 0 4px 4px rgba(0, 0, 0, 0.16);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.24);
-  --shadow-xl: 0 0 0 1px rgba(30, 31, 34, 0.6), 0 2px 10px rgba(0, 0, 0, 0.2);
+  --shadow-sm: var(--md-elevation-1);
+  --shadow-md: var(--md-elevation-2);
+  --shadow-lg: var(--md-elevation-3);
+  --shadow-xl: none;
   --shadow-glow: none;
   --shadow-glow-accent: none;
 
-  --input-bg: #1e1f22;
-  --input-border: transparent;
-  --input-focus: transparent;
+  --input-bg: var(--md-surface-container-highest);
+  --input-border: var(--md-outline);
+  --input-focus: var(--md-primary);
+  --input-focus-bg: var(--md-surface-container-highest);
 
-  --font-display: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial,
-    sans-serif;
-  --font-code: "gg mono", Consolas, "Andale Mono WT", "Andale Mono",
-    "Lucida Console", Monaco, "Courier New", monospace;
-
-  /* Floating surfaces (toasts, tooltips) and overlays. */
-  --floating-bg: #111214;
-  --floating-fg: #dbdee1;
-  --floating-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --input-focus-bg: #18191c;
-  --overlay: rgba(0, 0, 0, 0.7);
-  --scrollbar: #1a1b1e;
+  /* Snackbars and plain tooltips sit on the inverse surface. */
+  --floating-bg: var(--md-inverse-surface);
+  --floating-fg: var(--md-inverse-on-surface);
+  --floating-shadow: var(--md-elevation-3);
+  --overlay: rgba(0, 0, 0, 0.32);
+  --scrollbar: var(--md-outline-variant);
 }
 
-/* Light palette, picked when the browser or OS asks for light mode. */
+/* ── MD3 colour roles: light scheme ──────────────────────────────────────── */
+/* Applied when the OS/browser asks for light and the user has not forced dark
+   with the header toggle, or when the user forced light (html[data-theme]). */
 @media (prefers-color-scheme: light) {
-  :root {
-    --w-face: #6d6f78;
-    --w-light: #ebedef;
-    --w-field: #e3e5e8;
-    --title-fg: #060607;
-
-    --hover-bg: #4e5058;
-    --press-bg: #41434a;
-
-    --bg-primary: #ffffff;
-    --bg-secondary: #f2f3f5;
-    --bg-tertiary: #e3e5e8;
-    --bg-elevated: #ebedef;
-    --bg-glass: #f2f3f5;
-    --bg-glass-hover: #ebedef;
-    --bg-card: #f2f3f5;
-    --bg-card-hover: #ebedef;
-    --bg-modifier-hover: rgba(116, 127, 141, 0.16);
-    --bg-modifier-active: rgba(116, 127, 141, 0.24);
-
-    --accent-secondary: #a93226;
-    --accent-tertiary: #a93226;
-    --accent-coral: #da373c;
-    --accent-sky: #006ce7;
-    --warning: #c27c0e;
-
-    --text-primary: #313338;
-    --text-secondary: #4e5058;
-    --text-tertiary: #5c5e66;
-    --text-muted: #80848e;
-    --text-link: #006ce7;
-
-    --border-subtle: #e1e2e4;
-    --border-medium: #c4c9ce;
-    --border-strong: #a5abb3;
-
-    --shadow-sm: 0 1px 0 rgba(6, 6, 7, 0.08), 0 1.5px 0 rgba(6, 6, 7, 0.03);
-    --shadow-md: 0 4px 4px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
-    --shadow-xl: 0 0 0 1px rgba(6, 6, 7, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06);
-
-    --input-bg: #e3e5e8;
-
-    --floating-bg: #ffffff;
-    --floating-fg: #313338;
-    --floating-shadow: 0 0 0 1px rgba(6, 6, 7, 0.08), 0 8px 24px rgba(0, 0, 0, 0.16);
-    --input-focus-bg: #ffffff;
-    --overlay: rgba(0, 0, 0, 0.5);
-    --scrollbar: #c4c9ce;
+  :root:not([data-theme="dark"]) {
+    .light-scheme();
   }
+}
+
+:root[data-theme="light"] {
+  .light-scheme();
+}
+
+.light-scheme() {
+  color-scheme: light;
+
+  --md-primary: #0b57d0;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #d3e3fd;
+  --md-on-primary-container: #041e49;
+  --md-secondary: #5b5d63;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #e1e2e8;
+  --md-on-secondary-container: #191b20;
+  --md-tertiary: #5b5d63;
+  --md-on-tertiary: #ffffff;
+  --md-tertiary-container: #e6e6e9;
+  --md-on-tertiary-container: #46464a;
+  --md-error: #ba1a1a;
+  --md-on-error: #ffffff;
+  --md-error-container: #ffdad6;
+  --md-on-error-container: #410002;
+  /* The same neutral greys, light: like the browser's light chrome. */
+  --md-surface: #f8f8fa;
+  --md-surface-dim: #d9d9dc;
+  --md-surface-bright: #f8f8fa;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f2f2f4;
+  --md-surface-container: #ececee;
+  --md-surface-container-high: #e6e6e9;
+  --md-surface-container-highest: #e0e0e3;
+  --md-on-surface: #1f1f23;
+  --md-on-surface-variant: #46464a;
+  --md-outline: #77777b;
+  --md-outline-variant: #c6c6ca;
+  --md-inverse-surface: #2c2c30;
+  --md-inverse-on-surface: #f1f1f3;
+  --md-inverse-primary: #a8c7fa;
+  --md-success: #146c2e;
+  --md-on-success: #ffffff;
+  --md-warning: #7a5900;
 }
 
 html,
@@ -166,12 +229,14 @@ body {
   height: 100%;
 }
 
+/* Body large: 16/24, tracking 0.5px. */
 body {
   font-family: var(--font-display);
-  font-size: 15px;
-  line-height: 1.375;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+  background: var(--md-surface);
+  color: var(--md-on-surface);
   min-height: 100vh;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
@@ -179,16 +244,19 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font-family: inherit;
+  letter-spacing: inherit;
 }
 
 a {
   color: var(--text-link);
 }
 
+/* MD3 focus indicator: 3px ring in secondary, 2px off the component. */
 :focus-visible {
-  outline: 2px solid var(--text-link);
+  outline: 3px solid var(--md-secondary);
   outline-offset: 2px;
 }
 
@@ -198,7 +266,7 @@ a {
 }
 
 ::selection {
-  background: rgba(192, 57, 43, 0.35);
+  background: color-mix(in srgb, var(--md-primary) 35%, transparent);
   color: inherit;
 }
 
