@@ -530,6 +530,86 @@ export const ProgressSize = styled.span`
 `;
 
 
+// ── Transfer mode ───────────────────────────────────────────────────────────
+
+export const ModeRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+/** MD3 segmented button: outlined pill split into segments. */
+export const SegmentedButton = styled.div`
+  display: flex;
+  height: 40px;
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-full);
+`;
+
+export const Segment = styled.button<{ $selected: boolean }>`
+  ${touchTarget}
+  ${type.labelLarge}
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  background: ${(p) =>
+    p.$selected ? "var(--md-secondary-container)" : "transparent"};
+  color: ${(p) =>
+    p.$selected ? "var(--md-on-secondary-container)" : "var(--md-on-surface)"};
+  transition: background-color 0.15s ${easeOut};
+
+  & + & {
+    border-left: 1px solid var(--md-outline);
+  }
+
+  /* Rounded ends instead of overflow: hidden, which would clip the 48dp
+     touch target. */
+  &:first-child {
+    border-radius: var(--md-shape-full) 0 0 var(--md-shape-full);
+  }
+  &:last-child {
+    border-radius: 0 var(--md-shape-full) var(--md-shape-full) 0;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: ${(p) =>
+      p.$selected
+        ? "color-mix(in srgb, var(--md-on-secondary-container) 8%, var(--md-secondary-container))"
+        : "color-mix(in srgb, var(--md-on-surface) 8%, transparent)"};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
+  }
+
+  &:focus-visible {
+    outline-offset: -3px;
+  }
+`;
+
+export const ModeHint = styled.p`
+  ${type.bodySmall}
+  color: var(--md-on-surface-variant);
+  margin: 0 16px;
+`;
+
+/** Which path a transfer took: tertiary for P2P, neutral for the relay. */
+export const PathBadge = styled.span<{ $p2p: boolean }>`
+  ${type.labelSmall}
+  padding: 0 6px;
+  border-radius: var(--md-shape-xs);
+  flex-shrink: 0;
+  background: ${(p) =>
+    p.$p2p ? "var(--md-primary-container)" : "var(--md-surface-container-highest)"};
+  color: ${(p) =>
+    p.$p2p ? "var(--md-on-primary-container)" : "var(--md-on-surface-variant)"};
+`;
+
 /** One card for sending, File and Text behind tabs, so only one shows. */
 export const SendCard = styled.section`
   background: var(--md-surface-container-low);

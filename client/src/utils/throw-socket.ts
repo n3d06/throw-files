@@ -17,6 +17,7 @@ type OutboundEvent =
   | "file-start"
   | "file-done"
   | "file-abort"
+  | "rtc"
   | "text";
 
 export type ConnectionState =
@@ -288,7 +289,16 @@ export class ThrowSocket {
       case "file-accept":
       case "file-decline":
         if (msg.channel !== this.channel || typeof msg.id !== "string") break;
-        this.fire(msg.type, { id: msg.id });
+        this.fire(msg.type, { id: msg.id, p2p: msg.p2p === true });
+        break;
+      case "rtc":
+        if (
+          msg.channel !== this.channel ||
+          typeof msg.id !== "string" ||
+          typeof msg.data !== "string"
+        )
+          break;
+        this.fire("rtc", { id: msg.id, data: msg.data });
         break;
       case "text":
         if (msg.channel !== this.channel || typeof msg.text !== "string") break;

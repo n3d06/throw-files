@@ -21,6 +21,9 @@ const MAX_MESSAGE_BYTES = 1024 * 1024;
 /** Must match MAX_TEXT_CHARS in client/src/utils/transfer.ts. */
 const MAX_TEXT_CHARS = 50_000;
 
+/** An SDP is a few KB; this leaves headroom without relaying junk. */
+const MAX_RTC_SIGNAL_CHARS = 32_000;
+
 /**
  * Durable Object that relays one channel's WebSocket traffic.
  *
@@ -163,12 +166,34 @@ export class ThrowFilesChannel {
         );
         break;
       case "file-accept":
-      case "file-decline":
         this.broadcast(
-          { type: msg.type, channel, id: String(msg.id ?? "") },
+          {
+            type: "file-accept",
+            channel,
+            id: String(msg.id ?? ""),
+            // The receiver is willing to take this file over WebRTC.
+            p2p: msg.p2p === true,
+          },
           ws,
         );
         break;
+      case "file-decline":
+        this.broadcast(
+          { type: "file-decline", channel, id: String(msg.id ?? "") },
+          ws,
+        );
+        break;
+      // WebRTC signalling (SDP and ICE candidates) for a P2P transfer. The
+      // file itself then goes device-to-device and never reaches the Worker.
+      case "rtc": {
+        const data = msg.data;
+        if (typeof data !== "string" || data.length > MAX_RTC_SIGNAL_CHARS) break;
+        this.broadcast(
+          { type: "rtc", channel, id: String(msg.id ?? ""), data },
+          ws,
+        );
+        break;
+      }
       // A text snippet goes out in one control frame — no chunking needed.
       case "text": {
         const text = msg.text;

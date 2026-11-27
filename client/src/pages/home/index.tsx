@@ -62,6 +62,15 @@ import {
   openReceiveSink,
   type ReceiveSink,
 } from "../../utils/receive-sink";
+import { listenAsReceiver, parseControl } from "../../utils/p2p";
+import {
+  loadTransferMode,
+  receiverWantsP2P,
+  saveTransferMode,
+  supportsP2P,
+  type TransferMode,
+} from "../../utils/transfer-mode";
+import type { TransferPath } from "../../utils/throw-file-upload";
 import * as S from "./styles";
 
 const FRONTEND_URL: string =
@@ -102,6 +111,8 @@ interface Transfer {
   compressed: boolean;
   /** Offered but not yet accepted by a receiver. */
   waiting?: boolean;
+  /** How the bytes travel, once known. */
+  path?: TransferPath;
 }
 
 /** A file another device wants to send, waiting for this user's answer. */
@@ -158,6 +169,10 @@ const MAX_MESSAGES = 50;
 interface ReceiveBuffer {
   /** Where chunks go: the user's chosen file, or memory as a fallback. */
   sink: ReceiveSink;
+  /** How bytes are arriving, once the first one does. */
+  path?: TransferPath;
+  /** Waiting for (or holding) the sender's DataChannel, when P2P is allowed. */
+  p2p?: { close(): void };
   bytes: number;
   info: { name: string; type: string; size: number; compressed: boolean };
   timeoutId: ReturnType<typeof setTimeout>;
@@ -495,8 +510,10 @@ export const Home = memo(() => {
   const uploaderRef = useRef<ThrowFileUpload | null>(null);
   // An offer counts as declined once every other device on the channel says no.
   if (!uploaderRef.current)
-    uploaderRef.current = new ThrowFileUpload(socket, () =>
-      Math.max(1, connectedUsersRef.current - 1),
+    uploaderRef.current = new ThrowFileUpload(
+      socket,
+      () => Math.max(1, connectedUsersRef.current - 1),
+      () => transferModeRef.current,
     );
   const uploader = uploaderRef.current;
 
@@ -512,6 +529,15 @@ export const Home = memo(() => {
   connectedUsersRef.current = connectedUsers;
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [readyFiles, setReadyFiles] = useState<ReadyFile[]>([]);
+  /** Relay, P2P or Auto; applies to files this device sends and receives. */
+  const [transferMode, setTransferModeState] =
+    useState<TransferMode>(loadTransferMode);
+  const transferModeRef = useRef(transferMode);
+  transferModeRef.current = transferMode;
+  const setTransferMode = useCallback((mode: TransferMode) => {
+    saveTransferMode(mode);
+    setTransferModeState(mode);
+  }, []);
   /** Files other devices want to send, oldest first; the first is prompted. */
   const [offers, setOffers] = useState<IncomingOffer[]>([]);
   const offersRef = useRef<IncomingOffer[]>([]);
@@ -586,6 +612,23 @@ export const Home = memo(() => {
     );
   }, []);
 
+  const setTransferPath = useCallback((id: string, path: TransferPath) => {
+    setTransfers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, path } : t)),
+    );
+  }, []);
+
+  /**
+   * The receive handlers live inside the socket effect; P2P DataChannels
+   * reach them through this ref so both paths share one code path.
+   */
+  const receiveRef = useRef<{
+    onChunk: (data: { id: string; file: ArrayBuffer }, path: TransferPath) => void;
+    onFileDone: (data: { id: string }) => void;
+    onFileAbort: (data: { id: string }) => void;
+    onP2PLost: (id: string) => void;
+  } | null>(null);
+
   const dropTransfer = useCallback((id: string) => {
     setTransfers((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -597,6 +640,7 @@ export const Home = memo(() => {
       if (buffer) {
         clearTimeout(buffer.timeoutId);
         buffer.sink.abort();
+        buffer.p2p?.close();
       }
       delete buffersRef.current[id];
       dropTransfer(id);
@@ -891,7 +935,37 @@ export const Home = memo(() => {
         compressed: offer.compressed,
       });
       setOffers((prev) => prev.filter((o) => o.id !== offer.id));
-      socket.emit("file-accept", { id: offer.id });
+
+      // Offer P2P unless this device is set to relay only. If the sender
+      // opens a DataChannel, the file arrives over it; if it falls back to
+      // the relay instead, this listener just closes with the transfer.
+      const p2p = receiverWantsP2P(transferModeRef.current) && supportsP2P();
+      if (p2p) {
+        const id = offer.id;
+        buffersRef.current[id].p2p = listenAsReceiver(socket, id, (channel) => {
+          let finished = false;
+          channel.onmessage = ({ data }) => {
+            const rx = receiveRef.current;
+            if (!rx) return;
+            if (data instanceof ArrayBuffer) {
+              rx.onChunk({ id, file: data }, "p2p");
+              return;
+            }
+            const control = typeof data === "string" ? parseControl(data) : null;
+            if (control?.t === "done") {
+              finished = true;
+              rx.onFileDone({ id });
+            } else if (control?.t === "abort") {
+              finished = true;
+              rx.onFileAbort({ id });
+            }
+          };
+          channel.onclose = () => {
+            if (!finished) receiveRef.current?.onP2PLost(id);
+          };
+        });
+      }
+      socket.emit("file-accept", { id: offer.id, p2p });
     },
     [addToast, armTimeout, upsertTransfer],
   );
@@ -948,9 +1022,25 @@ export const Home = memo(() => {
 
     // Chunks only land for transfers this user accepted. Anything else (an
     // offer declined here, or accepted on another device) is dropped unread.
-    const onChunk = (data: { id: string; file: ArrayBuffer }) => {
+    const onChunk = (
+      data: { id: string; file: ArrayBuffer },
+      path: TransferPath = "relay",
+    ) => {
       const buffer = buffersRef.current[data.id];
       if (!buffer || !data.file || data.file.byteLength === 0) return;
+
+      // The first chunk fixes the path; bytes from the other one are ignored.
+      if (!buffer.path) {
+        buffer.path = path;
+        setTransferPath(data.id, path);
+        // The sender chose the relay: stop waiting for a DataChannel.
+        if (path === "relay") {
+          buffer.p2p?.close();
+          buffer.p2p = undefined;
+        }
+      } else if (buffer.path !== path) {
+        return;
+      }
 
       if (
         wouldExceedExpectedSize(buffer.bytes, data.file.byteLength, buffer.info.size)
@@ -977,6 +1067,7 @@ export const Home = memo(() => {
       clearTimeout(buffer.timeoutId);
       delete buffersRef.current[data.id];
       dropTransfer(data.id);
+      buffer.p2p?.close();
 
       // Never keep a file that is missing bytes: a dropped frame would
       // otherwise produce a truncated file reported as a success.
@@ -1067,7 +1158,10 @@ export const Home = memo(() => {
     const onDisconnected = () => {
       // Offers die with the connection; the sender sees it drop too.
       setOffers([]);
-      const ids = Object.keys(buffersRef.current);
+      // A P2P transfer that is already flowing does not need the relay.
+      const ids = Object.keys(buffersRef.current).filter(
+        (id) => buffersRef.current[id].path !== "p2p",
+      );
       if (ids.length === 0) return;
       ids.forEach((id) => discardBuffer(id));
       addToast(
@@ -1077,12 +1171,39 @@ export const Home = memo(() => {
       );
     };
 
+    // Relay "file-done" only finishes relay transfers; P2P ones finish on
+    // the DataChannel's own "done".
+    const onRelayFileDone = (data: { id: string }) => {
+      if (buffersRef.current[data.id]?.path === "p2p") return;
+      void onFileDone(data);
+    };
+    const onRelayChunk = (data: { id: string; file: ArrayBuffer }) =>
+      onChunk(data, "relay");
+
+    const onP2PLost = (id: string) => {
+      const buffer = buffersRef.current[id];
+      if (!buffer || buffer.path !== "p2p") return;
+      discardBuffer(id);
+      addToast(
+        "Transfer interrupted",
+        `The direct connection dropped while receiving ${buffer.info.name}. Nothing was saved.`,
+        "error",
+      );
+    };
+
+    receiveRef.current = {
+      onChunk,
+      onFileDone: (data) => void onFileDone(data),
+      onFileAbort,
+      onP2PLost,
+    };
+
     socket.on("state", onState);
     socket.on("peer-joined", onPeerJoined);
     socket.on("connections", onConnections);
     socket.on("file-offer", onOffer);
-    socket.on("chunk", onChunk);
-    socket.on("file-done", onFileDone);
+    socket.on("chunk", onRelayChunk);
+    socket.on("file-done", onRelayFileDone);
     socket.on("file-abort", onFileAbort);
     socket.on("text", onText);
     socket.on("disconnected", onDisconnected);
@@ -1092,11 +1213,12 @@ export const Home = memo(() => {
       socket.off("peer-joined", onPeerJoined);
       socket.off("connections", onConnections);
       socket.off("file-offer", onOffer);
-      socket.off("chunk", onChunk);
-      socket.off("file-done", onFileDone);
+      socket.off("chunk", onRelayChunk);
+      socket.off("file-done", onRelayFileDone);
       socket.off("file-abort", onFileAbort);
       socket.off("text", onText);
       socket.off("disconnected", onDisconnected);
+      receiveRef.current = null;
     };
   }, [
     addToast,
@@ -1106,6 +1228,7 @@ export const Home = memo(() => {
     discardBuffer,
     dropTransfer,
     setTransferBytes,
+    setTransferPath,
   ]);
 
   // ── Uploader wiring ───────────────────────────────────────────────────────
@@ -1122,8 +1245,8 @@ export const Home = memo(() => {
     });
     const onOffer = ({ file }: { file: UploadFileInfo }) =>
       upsertTransfer(row(file, true));
-    const onStart = ({ file }: { file: UploadFileInfo }) =>
-      upsertTransfer(row(file, false));
+    const onStart = ({ file, path }: { file: UploadFileInfo; path: TransferPath }) =>
+      upsertTransfer({ ...row(file, false), path });
 
     const onProgress = ({ id, bytesSent }: { id: string; bytesSent: number }) =>
       setTransferBytes(id, bytesSent);
@@ -1154,7 +1277,10 @@ export const Home = memo(() => {
             ? ["Declined", "warning"]
             : event.code === UploadError.NoAnswer
               ? ["No answer", "warning"]
-              : ["Send failed", "error"];
+              : event.code === UploadError.P2PFailed ||
+                  event.code === UploadError.P2PRefused
+                ? ["P2P unavailable", "warning"]
+                : ["Send failed", "error"];
       addToast(title, event.message, kind);
       if (fileRef.current) fileRef.current.value = "";
     };
@@ -1562,6 +1688,40 @@ export const Home = memo(() => {
                   </span>
                 </S.DeviceCount>
                 </S.StatusRow>
+          <S.ModeRow>
+            <S.SegmentedButton role="radiogroup" aria-label="Transfer mode">
+              {(
+                [
+                  { key: "auto", label: "Auto" },
+                  { key: "p2p", label: "P2P" },
+                  { key: "relay", label: "Relay" },
+                ] as const
+              ).map((option) => {
+                const selected = transferMode === option.key;
+                return (
+                  <S.Segment
+                    key={option.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    $selected={selected}
+                    disabled={option.key !== "relay" && !supportsP2P()}
+                    onClick={() => setTransferMode(option.key)}
+                  >
+                    {selected && <Check size={18} aria-hidden="true" />}
+                    {option.label}
+                  </S.Segment>
+                );
+              })}
+            </S.SegmentedButton>
+            <S.ModeHint>
+              {transferMode === "auto"
+                ? "Direct between devices when possible, otherwise through the server."
+                : transferMode === "p2p"
+                  ? "Direct between devices only. Fails if they can't reach each other."
+                  : "Always through the server."}
+            </S.ModeHint>
+          </S.ModeRow>
           {/* File and text share one card behind MD3 tabs. Drag events sit on
               the card, so dragging a file in from the Text tab still lands. */}
           <S.SendCard
@@ -1754,6 +1914,18 @@ export const Home = memo(() => {
                         </S.FileNameText>
                         {transfer.compressed && (
                           <S.ZipBadge>ZIP</S.ZipBadge>
+                        )}
+                        {transfer.path && (
+                          <S.PathBadge
+                            $p2p={transfer.path === "p2p"}
+                            title={
+                              transfer.path === "p2p"
+                                ? "Direct between devices, end-to-end encrypted"
+                                : "Through the relay server"
+                            }
+                          >
+                            {transfer.path === "p2p" ? "P2P" : "Relay"}
+                          </S.PathBadge>
                         )}
                       </S.FileNameWrapper>
                       <S.TransferStatus $receiving={receiving}>
