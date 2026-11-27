@@ -19,12 +19,12 @@ const PrivacyPolicy = () => {
                 onClick={() => history.push("/")}
                 style={{ padding: 0, height: "auto", alignSelf: "flex-start" }}
               >
-                <ArrowLeft size={16} /> Back to Transfer
+                <ArrowLeft size={16} /> Back to transfer
               </Button>
 
               <PageHeader>
                 <ShieldCheck size={48} color="var(--accent-primary)" />
-                <h1>Privacy Policy</h1>
+                <h1>Privacy policy</h1>
                 <UpdatedAt>Last updated: {LAST_UPDATED}</UpdatedAt>
               </PageHeader>
 

@@ -4,7 +4,7 @@
    blue accent (primary #a8c7fa dark / #0b57d0 light) for primary actions,
    the channel card and links. Status keeps its colours: green, amber, red.
    Components read the --md-* roles; the older names further down are aliases
-   onto them. System fonts only: no remote font import. */
+   onto them. Roboto and Roboto Mono are self-hosted via @fontsource. */
 
 *,
 *::before,
@@ -51,6 +51,8 @@
   --md-inverse-surface: #e3e3e6;
   --md-inverse-on-surface: #2c2c30;
   --md-inverse-primary: #0b57d0;
+  /* Error on the inverse surface (snackbar icons). */
+  --md-inverse-error: #b3261e;
   /* Not MD3 baseline roles: Google green for "connected"/"saved", amber for warnings. */
   --md-success: #6dd58c;
   --md-on-success: #0a3818;
@@ -75,10 +77,10 @@
   --md-ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
 
   /* ── Type ──────────────────────────────────────────────────────────────── */
-  --font-display: Roboto, "Roboto Flex", "Segoe UI Variable Text", "Segoe UI",
-    system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --font-code: "Roboto Mono", "Cascadia Mono", Consolas, "SF Mono", Menlo,
-    "Courier New", monospace;
+  --font-display: Roboto, "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-code: "Roboto Mono", Consolas, "SF Mono", Menlo, "Courier New",
+    monospace;
 
   /* ── Legacy aliases onto the MD3 roles ─────────────────────────────────── */
   --w-face: var(--md-secondary-container);
@@ -219,6 +221,7 @@
   --md-inverse-surface: #2c2c30;
   --md-inverse-on-surface: #f1f1f3;
   --md-inverse-primary: #a8c7fa;
+  --md-inverse-error: #f2b8b5;
   --md-success: #146c2e;
   --md-on-success: #ffffff;
   --md-warning: #7a5900;

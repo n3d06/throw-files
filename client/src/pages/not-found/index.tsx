@@ -18,7 +18,7 @@ const NotFound = () => {
               everything happens.
             </p>
             <Button variant="primary" onClick={() => history.push("/")}>
-              Go to Transfer
+              Go to transfer
             </Button>
           </Inner>
         </CardBody>

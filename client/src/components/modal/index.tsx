@@ -214,7 +214,15 @@ const Title = styled.h2`
 
 /** Standard icon button: 40dp with a round state layer. */
 const CloseBtn = styled.button`
+  position: relative;
   flex-shrink: 0;
+
+  /* 48dp touch target around the 40dp button. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+  }
   background: transparent;
   border: none;
   cursor: pointer;

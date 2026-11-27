@@ -75,8 +75,8 @@ export const Header = () => {
           href="https://github.com/n3d06/throw-files"
           target="_blank"
           rel="noopener noreferrer"
-          title="View Source on GitHub"
-          aria-label="View Source on GitHub"
+          title="View source on GitHub"
+          aria-label="View source on GitHub"
         >
           <Github size={20} />
         </NavAnchor>
@@ -164,6 +164,7 @@ const NavActions = styled.nav`
 
 /** Standard icon button: 40dp, round state layer. */
 const navItemStyles = `
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,6 +176,13 @@ const navItemStyles = `
   cursor: pointer;
   border: none;
   transition: background 0.15s var(--md-ease-standard);
+
+  /* 48dp touch target around the 40dp button. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+  }
 
   &:hover {
     background: color-mix(in srgb, var(--md-on-surface-variant) 8%, transparent);

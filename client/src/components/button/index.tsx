@@ -135,7 +135,6 @@ const Btn = styled.button<{
 }>`
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -160,10 +159,22 @@ const Btn = styled.button<{
     position: absolute;
     inset: 0;
     z-index: -1;
+    border-radius: inherit;
     background: currentColor;
     opacity: 0;
     transition: opacity 0.15s var(--md-ease-standard);
     pointer-events: none;
+  }
+
+  /* MD3 minimum touch target: 48dp even when the button is drawn smaller. */
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 48px);
+    height: max(100%, 48px);
+    transform: translate(-50%, -50%);
   }
 
   &:hover:not(:disabled)::before {

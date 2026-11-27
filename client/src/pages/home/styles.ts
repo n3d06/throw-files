@@ -4,7 +4,7 @@
 // Motion is decorative only: the global prefers-reduced-motion rule in
 // App.less collapses every animation and transition here to ~0ms.
 import styled, { css, keyframes } from "styled-components";
-import { Input } from "../../components";
+import { Button, Input } from "../../components";
 
 /** MD3 emphasized decelerate: things entering the screen. */
 const spring = "var(--md-ease-emphasized-decelerate)";
@@ -18,6 +18,24 @@ const stateLayer = (color = "currentColor") => css`
   }
   &:active:not(:disabled) {
     background-color: color-mix(in srgb, ${color} 10%, transparent);
+  }
+`;
+
+/**
+ * MD3 minimum touch target: an invisible 48×48 hit area centred on controls
+ * that are drawn smaller (40dp icon buttons, 32dp chips and small buttons).
+ */
+export const touchTarget = css`
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 48px);
+    height: max(100%, 48px);
+    transform: translate(-50%, -50%);
   }
 `;
 
@@ -78,25 +96,21 @@ export const fadeUp = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
-export const bounce = keyframes`
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-`;
 
 const popIn = keyframes`
   from { opacity: 0; transform: scale(0.6); }
   to { opacity: 1; transform: scale(1); }
 `;
 
-const flipIn = keyframes`
-  0% { opacity: 0; transform: translateY(-60%) rotateX(90deg); }
-  60% { opacity: 1; transform: translateY(8%) rotateX(-12deg); }
-  100% { opacity: 1; transform: translateY(0) rotateX(0); }
+/** New list items: a short fade with a small rise (MD3 enter). */
+const slideIn = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 `;
 
-const slideIn = keyframes`
-  0% { opacity: 0; transform: translateX(-24px) scale(0.97); }
-  100% { opacity: 1; transform: translateX(0) scale(1); }
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
 `;
 
 const blink = keyframes`
@@ -105,17 +119,7 @@ const blink = keyframes`
 `;
 
 
-const hop = keyframes`
-  0%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-7px); }
-  55% { transform: translateY(0); }
-  75% { transform: translateY(-3px); }
-`;
 
-const shrink = keyframes`
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
-`;
 
 export const HomeComponent = styled.div`
   min-height: 100vh;
@@ -153,14 +157,8 @@ export const PanelBody = styled.div`
   flex: 1;
   padding: 0;
 
-  /* Each block rises in a beat after the one above it. */
-  > * {
-    animation: ${fadeUp} 0.5s ${easeOut} both;
-  }
-  ${[1, 2, 3, 4, 5, 6, 7, 8]
-    .map((n) => `> *:nth-child(${n}) { animation-delay: ${0.08 + n * 0.06}s; }`)
-    .join("\n")}
-
+  /* The page fades in once as a whole (MD3 fade-through), not block by block. */
+  animation: ${fadeIn} 0.3s ${easeOut} both;
 `;
 
 /** Section heading: Title small in primary, like an MD3 list subheader. */
@@ -292,15 +290,10 @@ export const ChannelCode = styled.span`
 `;
 
 export const ChannelChars = styled.span`
-  display: inline-flex;
-  perspective: 400px;
+  display: inline-block;
+  animation: ${fadeIn} 0.3s ${easeOut} both;
 `;
 
-export const ChannelChar = styled.span`
-  display: inline-block;
-  transform-origin: 50% 0;
-  animation: ${flipIn} 0.5s ${easeOut} both;
-`;
 
 export const ActionButtons = styled.div`
   display: flex;
@@ -322,11 +315,12 @@ export const SwapIcon = styled.span`
  * colour. A tick (`$success`) swaps in after a copy.
  */
 export const IconButton = styled.button<{ $success?: boolean }>`
+  ${touchTarget}
   transition: background-color 0.15s ${easeOut}, color 0.15s ${easeOut};
   border-radius: var(--md-shape-full);
   background: transparent;
   border: none;
-  color: ${(p) => (p.$success ? "var(--md-success)" : "inherit")};
+  color: ${(p) => (p.$success ? "var(--md-primary)" : "inherit")};
   width: 40px;
   height: 40px;
   flex-shrink: 0;
@@ -535,9 +529,6 @@ export const ProgressSize = styled.span`
   font-variant-numeric: tabular-nums;
 `;
 
-export const SendButtonIcon = styled.div`
-  display: flex;
-`;
 
 /** One card for sending, File and Text behind tabs, so only one shows. */
 export const SendCard = styled.section`
@@ -550,7 +541,7 @@ export const SendCard = styled.section`
   min-width: 0;
 `;
 
-/** MD3 primary tabs (inline icon), divider underneath. */
+/** MD3 secondary tabs: they switch content inside this card, not the page. */
 export const SendTabs = styled.div`
   display: flex;
   margin: 0 -16px;
@@ -570,7 +561,7 @@ export const SendTab = styled.button<{ $active: boolean }>`
   border: none;
   cursor: pointer;
   color: ${(p) =>
-    p.$active ? "var(--md-primary)" : "var(--md-on-surface-variant)"};
+    p.$active ? "var(--md-on-surface)" : "var(--md-on-surface-variant)"};
   transition:
     color 0.2s ${easeOut},
     background-color 0.15s ${easeOut};
@@ -583,17 +574,16 @@ export const SendTab = styled.button<{ $active: boolean }>`
     border-top-right-radius: var(--md-shape-lg);
   }
 
-  /* Active indicator: 3dp, rounded top, under the label. */
+  /* Secondary-tab indicator: 2dp, the full width of the tab. */
   &::after {
     content: "";
     position: absolute;
-    left: 50%;
+    left: 0;
+    right: 0;
     bottom: -1px;
-    width: 64px;
-    height: 3px;
-    border-radius: 3px 3px 0 0;
+    height: 2px;
     background: var(--md-primary);
-    transform: translateX(-50%) scaleX(${(p) => (p.$active ? 1 : 0)});
+    transform: scaleX(${(p) => (p.$active ? 1 : 0)});
     transition: transform 0.3s ${spring};
   }
 
@@ -649,15 +639,12 @@ export const FileSection = styled.div<{ $dragging?: boolean; $inactive?: boolean
       background: color-mix(in srgb, var(--md-primary) 16%, var(--md-surface-container-low));
       border: 2px solid var(--md-primary);
       padding: 23px 15px;
-
-      ${SendButtonIcon} {
-        animation: ${hop} 0.9s ${easeOut} infinite;
-      }
     `}
 `;
 
 /** Text button sized for an inline action. */
 export const BannerAction = styled.button`
+  ${touchTarget}
   ${type.labelLarge}
   ${stateLayer()}
   transition: background-color 0.15s ${easeOut};
@@ -672,6 +659,7 @@ export const BannerAction = styled.button`
 
 /** Standard icon button for dismiss/cancel. */
 export const CancelButton = styled.button`
+  ${touchTarget}
   ${stateLayer()}
   transition: background-color 0.15s ${easeOut};
   border-radius: var(--md-shape-full);
@@ -797,6 +785,70 @@ export const TextComposer = styled.div<{ $inactive?: boolean }>`
   gap: 8px;
 `;
 
+/**
+ * MD3 outlined text field label. The <label> follows its input/textarea; it
+ * rests inside the field and floats onto the outline (Body small, in primary
+ * while focused) once the field is focused or filled. `$bg` is the surface the
+ * field sits on, used to cut the outline behind the floated label. The
+ * placeholder only shows while focused, so it never collides with the label.
+ */
+export const OutlinedField = styled.div<{ $bg: string; $grow?: boolean }>`
+  position: relative;
+  min-width: 0;
+  ${(p) =>
+    p.$grow &&
+    css`
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    `}
+
+  > label {
+    position: absolute;
+    left: 12px;
+    top: 16px;
+    max-width: calc(100% - 24px);
+    padding: 0 4px;
+    ${type.bodyLarge}
+    color: var(--md-on-surface-variant);
+    background: transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    transform-origin: left center;
+    transition:
+      top 0.2s ${easeOut},
+      font-size 0.2s ${easeOut},
+      line-height 0.2s ${easeOut},
+      color 0.2s ${easeOut},
+      background-color 0s 0.1s;
+  }
+
+  > input:not(:focus)::placeholder,
+  > textarea:not(:focus)::placeholder {
+    color: transparent;
+  }
+
+  > :is(input, textarea):focus + label,
+  > :is(input, textarea):not(:placeholder-shown) + label {
+    top: -8px;
+    ${type.bodySmall}
+    background: ${(p) => p.$bg};
+    transition:
+      top 0.2s ${easeOut},
+      font-size 0.2s ${easeOut},
+      line-height 0.2s ${easeOut},
+      color 0.2s ${easeOut},
+      background-color 0s;
+  }
+
+  > :is(input, textarea):focus + label {
+    color: var(--md-primary);
+  }
+`;
+
 /** MD3 outlined text field, multi-line. */
 export const TextArea = styled.textarea`
   width: 100%;
@@ -865,7 +917,7 @@ export const MessageItem = styled.div<{ $mine: boolean }>`
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  padding: 12px 4px 12px 16px;
+  padding: 12px 8px 12px 16px;
   border-radius: var(--md-shape-md);
   background: ${(p) =>
     p.$mine
@@ -899,92 +951,31 @@ export const MessageText = styled.div`
   overflow-y: auto;
 `;
 
-export const LoadingDotsWrapper = styled.div`
-  display: flex;
-  gap: 8px;
+const spin = keyframes`
+  to { transform: rotate(360deg); }
 `;
 
-export const LoadingDot = styled.div`
-  width: 10px;
-  height: 10px;
+/** MD3 indeterminate circular progress indicator: 48dp, 4dp track. */
+export const CircularProgress = styled.div`
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--md-primary);
-  animation: ${bounce} 1.4s ease-in-out infinite both;
-
-  &:nth-of-type(1) {
-    animation-delay: -0.32s;
-  }
-  &:nth-of-type(2) {
-    animation-delay: -0.16s;
-  }
+  border: 4px solid var(--md-secondary-container);
+  border-top-color: var(--md-primary);
+  animation: ${spin} 1s linear infinite;
 `;
 
 export const SendButtonWrapper = styled.div`
   text-align: center;
 `;
 
-/** The screen's main action, so it is an MD3 Extended FAB (56dp, level 3). */
-export const SendButton = styled.button`
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  transition: box-shadow 0.2s ${easeOut};
-  background: var(--md-primary-container);
-  color: var(--md-on-primary-container);
-  border: none;
-  border-radius: var(--md-shape-lg);
-  height: 56px;
-  min-width: 80px;
-  padding: 0 20px 0 16px;
-  ${type.labelLarge}
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--md-elevation-3);
-
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: currentColor;
-    opacity: 0;
-    transition: opacity 0.15s ${easeOut};
-  }
-
-  &:hover:not(:disabled) {
-    box-shadow: var(--md-elevation-3), 0 6px 10px 4px rgba(0, 0, 0, 0.15);
-  }
-
-  &:hover:not(:disabled)::before {
-    opacity: 0.08;
-  }
-
-  &:active:not(:disabled)::before,
-  &:focus-visible::before {
-    opacity: 0.1;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    box-shadow: none;
-    background: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
-    color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
-  }
-
-  svg {
-    width: 24px;
-    height: 24px;
-  }
-
+/** The drop zone's action: an MD3 filled button (a FAB belongs on the screen
+    edge, not inside a card). Full width on phones. */
+export const SendButton = styled(Button)`
   @media (max-width: 480px) {
     width: 100%;
-    justify-content: center;
   }
 `;
-
-export const SendButtonText = styled.span``;
 
 export const PasteHint = styled.p`
   margin-top: 16px;
@@ -1085,6 +1076,7 @@ export const InlineTypeBadge = styled.span<{ $type: "sent" | "received" }>`
 
 /** MD3 outlined button, full width. */
 export const ViewAllButton = styled.button`
+  ${touchTarget}
   ${type.labelLarge}
   ${stateLayer("var(--md-primary)")}
   transition: background-color 0.15s ${easeOut};
@@ -1115,6 +1107,7 @@ export const FooterLinks = styled.div`
 
 /** Text-button-like footer link with a state layer. */
 export const FooterLink = styled.a`
+  ${touchTarget}
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1168,6 +1161,7 @@ export const TabBar = styled.div`
 `;
 
 export const TabButton = styled.button<{ $active: boolean }>`
+  ${touchTarget}
   ${type.labelLarge}
   transition: background-color 0.15s ${easeOut}, box-shadow 0.15s ${easeOut};
   height: 32px;
@@ -1293,121 +1287,81 @@ export const FileSizeText = styled.span`
   color: var(--md-on-surface-variant);
 `;
 
-// Toasts are MD3 snackbars (inverse surface, 4dp corners), stacked into a pile
-// that fans out on hover.
-export const TOAST_HEIGHT = 64;
-export const TOAST_GAP = 8;
-/** How far each older toast peeks out above the one in front of it. */
-export const TOAST_PEEK = 10;
-
-const toastEase = "var(--md-ease-emphasized-decelerate)";
-
-export const ToastContainerWrapper = styled.div<{ $expanded: boolean }>`
+// MD3 snackbar: inverse surface, 4dp corners, level 3, one at a time.
+export const SnackbarHost = styled.div`
   position: fixed;
-  bottom: 24px;
   left: 50%;
+  bottom: 24px;
   transform: translateX(-50%);
   z-index: 9999;
-  width: min(400px, calc(100vw - 32px));
-  transition: height 0.4s ${toastEase};
-  /* Collapsed, only the toasts themselves catch the pointer. Expanded, the
-     whole box does, so the gaps between fanned-out toasts don't count as
-     leaving the stack. */
-  pointer-events: ${(p) => (p.$expanded ? "auto" : "none")};
+  width: min(560px, calc(100vw - 32px));
+  pointer-events: none;
 `;
 
-interface ToastItemProps {
-  $index: number;
-  $expanded: boolean;
-  $visible: boolean;
-  $leaving: boolean;
-  $hidden: boolean;
-}
-
-function toastTransform(p: ToastItemProps): string {
-  const y = p.$expanded
-    ? -p.$index * (TOAST_HEIGHT + TOAST_GAP)
-    : -p.$index * TOAST_PEEK;
-  const scale = p.$expanded ? 1 : Math.max(0.8, 1 - p.$index * 0.05);
-  if (!p.$visible) return `translateY(120%) scale(0.9)`;
-  if (p.$leaving) return `translateY(${y + 24}px) scale(${scale * 0.9})`;
-  return `translateY(${y}px) scale(${scale})`;
-}
-
-export const ToastItem = styled.div<ToastItemProps>`
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: ${TOAST_HEIGHT}px;
-  /* Inverse-surface snackbar, tinted with the toast type colour so success,
-     info, warning and error read apart at a glance. */
-  background: color-mix(in srgb, var(--toast-color, transparent) 18%, var(--md-inverse-surface));
-  color: var(--md-inverse-on-surface);
-  border-radius: var(--md-shape-xs);
-  box-shadow: var(--md-elevation-3);
-  overflow: hidden;
-  transform-origin: center bottom;
-  will-change: transform, opacity;
-  z-index: ${(p) => 100 - p.$index};
-  transform: ${toastTransform};
-  opacity: ${(p) => (!p.$visible || p.$leaving || p.$hidden ? 0 : 1)};
-  pointer-events: ${(p) => (p.$hidden || p.$leaving ? "none" : "auto")};
-  transition:
-    transform 0.4s ${toastEase},
-    opacity 0.3s var(--md-ease-standard);
-`;
-
-export const ToastInner = styled.div<{ $muted: boolean }>`
-  height: 100%;
+export const Snackbar = styled.div<{ $visible: boolean; $leaving: boolean }>`
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 4px 0 16px;
-  opacity: ${(p) => (p.$muted ? 0 : 1)};
-  transition: opacity 0.3s var(--md-ease-standard);
+  min-height: 48px;
+  padding: 6px 8px 6px 16px;
+  background: var(--md-inverse-surface);
+  color: var(--md-inverse-on-surface);
+  border-radius: var(--md-shape-xs);
+  box-shadow: var(--md-elevation-3);
+  opacity: ${(p) => (p.$visible && !p.$leaving ? 1 : 0)};
+  transform: ${(p) =>
+    !p.$visible ? "translateY(16px)" : p.$leaving ? "scale(0.96)" : "none"};
+  transition:
+    opacity ${(p) => (p.$leaving ? "0.15s" : "0.25s")} var(--md-ease-standard),
+    transform 0.3s ${spring};
 `;
 
-export const ToastIconWrapper = styled.div`
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  animation: ${popIn} 0.3s ${spring} 0.15s both;
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`;
-
-export const ToastContent = styled.div`
+/** Icon + text; a newer message replaces them in place, without animating. */
+export const SnackbarContent = styled.div`
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 `;
 
-export const ToastTitle = styled.div`
+/** Leading icon in the snackbar's accent roles (inverse-primary / error). */
+export const SnackbarIcon = styled.span<{
+  $type: "success" | "error" | "info" | "warning";
+}>`
+  display: flex;
+  flex-shrink: 0;
+  color: ${(p) =>
+    p.$type === "error" || p.$type === "warning"
+      ? "var(--md-inverse-error)"
+      : "var(--md-inverse-primary)"};
+`;
+
+export const SnackbarText = styled.div`
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+`;
+
+export const SnackbarTitle = styled.div`
   ${type.labelLarge}
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 `;
 
-export const ToastText = styled.div`
+/** Body medium, clamped to two lines as MD3 allows. */
+export const SnackbarSupporting = styled.div`
   ${type.bodyMedium}
-  opacity: 0.8;
-  white-space: nowrap;
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 `;
 
-/** Snackbar close affordance: a standard icon button on the inverse surface. */
-export const ToastClose = styled.button`
+/** Close affordance: a standard icon button on the inverse surface. */
+export const SnackbarClose = styled.button`
   ${stateLayer()}
+  ${touchTarget}
   transition: background-color 0.15s ${easeOut};
   border-radius: var(--md-shape-full);
   background: transparent;
@@ -1420,19 +1374,6 @@ export const ToastClose = styled.button`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-`;
-
-/** Time-left bar along the bottom edge; freezes while the stack is hovered. */
-export const ToastTimer = styled.div<{ $duration: number; $paused: boolean }>`
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  opacity: 0.8;
-  transform-origin: left center;
-  animation: ${shrink} ${(p) => p.$duration}ms linear both;
-  animation-play-state: ${(p) => (p.$paused ? "paused" : "running")};
 `;
 
 export const SkipToContent = styled.a`

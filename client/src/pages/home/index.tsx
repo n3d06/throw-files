@@ -30,7 +30,6 @@ import {
   Info,
   Check,
   Send,
-  Type,
 } from "lucide-react";
 import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
@@ -69,9 +68,6 @@ const FRONTEND_URL: string =
 
 const TRANSFER_TIMEOUT = 5 * 60 * 1000;
 const TOAST_DURATION = 5000;
-const MAX_TOASTS = 5;
-/** How many toasts show in the collapsed stack; the rest wait behind them. */
-const TOAST_STACK_DEPTH = 3;
 const OBJECT_URL_TTL = 60_000;
 
 const TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
@@ -164,162 +160,116 @@ function formatTime(at: number): string {
   return TIME_FORMAT.format(new Date(at));
 }
 
-const TOAST_ICONS: Record<ToastVariant, JSX.Element> = {
-  success: <Check size={16} strokeWidth={3} />,
-  error: <AlertCircle size={16} strokeWidth={2.5} />,
-  warning: <AlertCircle size={16} strokeWidth={2.5} />,
-  info: <Info size={16} strokeWidth={2.5} />,
+const SNACKBAR_ICONS: Record<ToastVariant, JSX.Element> = {
+  success: <CheckCircle size={20} />,
+  error: <AlertCircle size={20} />,
+  warning: <AlertCircle size={20} />,
+  info: <Info size={20} />,
 };
 
-const TOAST_STYLES: Record<ToastVariant, string> = {
-  success: "#1a73e8",
-  error: "#d93025",
-  warning: "#f9ab00",
-  info: "#1a73e8",
-};
-
-const Toast = ({
+/**
+ * MD3 snackbar: one at a time on the inverse surface. A newer message replaces
+ * the current one (see addToast). The countdown pauses while the pointer or
+ * keyboard focus is on it, so it never vanishes mid-read.
+ */
+const Snackbar = ({
   toast,
-  index,
-  expanded,
   onRemove,
 }: {
   toast: ToastData;
-  /** 0 is the newest toast, at the front of the stack. */
-  index: number;
-  expanded: boolean;
   onRemove: (id: string) => void;
 }) => {
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [paused, setPaused] = useState(false);
   const remainingRef = useRef(TOAST_DURATION);
 
   // Held in a ref so the timers below never restart because the parent passed
-  // a new callback. Keying on it restarted the countdown on every parent
-  // render, so toasts never auto-dismissed while a transfer was ticking.
+  // a new callback; keying on it restarted the countdown on every render.
   const onRemoveRef = useRef(onRemove);
   onRemoveRef.current = onRemove;
 
   const itemRef = useRef<HTMLDivElement>(null);
 
-  // Reading layout forces the browser to compute the off-screen starting
-  // style before `visible` flips, so the slide-in transitions. Waiting on
-  // requestAnimationFrame instead stalled in background tabs, where frames
-  // never fire, and left toasts stuck invisible.
+  // Reading layout forces the off-screen starting style to apply before
+  // `visible` flips, so the entrance transitions even in background tabs.
   useLayoutEffect(() => {
     itemRef.current?.getBoundingClientRect();
     setVisible(true);
   }, []);
 
-  // The countdown pauses while the stack is expanded (hovered or focused), so
-  // a toast cannot vanish from under the pointer; it resumes where it left off.
+  // A newer message reuses this snackbar instead of remounting it, so rapid
+  // messages swap text in place rather than flashing out and back in. Each
+  // one gets a fresh countdown, and one arriving mid-exit cancels the exit.
+  const shownId = useRef(toast.id);
+  if (shownId.current !== toast.id) {
+    shownId.current = toast.id;
+    remainingRef.current = TOAST_DURATION;
+  }
   useEffect(() => {
-    if (expanded || leaving) return;
+    setLeaving(false);
+  }, [toast.id]);
+
+  useEffect(() => {
+    if (paused || leaving) return;
     const started = Date.now();
     const dismiss = setTimeout(() => setLeaving(true), remainingRef.current);
     return () => {
       clearTimeout(dismiss);
       remainingRef.current -= Date.now() - started;
     };
-  }, [expanded, leaving]);
+  }, [paused, leaving, toast.id]);
 
   useEffect(() => {
     if (!leaving) return;
-    const remove = setTimeout(() => onRemoveRef.current(toast.id), 400);
+    const remove = setTimeout(() => onRemoveRef.current(toast.id), 200);
     return () => clearTimeout(remove);
   }, [leaving, toast.id]);
 
-  const color = TOAST_STYLES[toast.type];
-  const hidden = !expanded && index >= TOAST_STACK_DEPTH;
-
   return (
-    <S.ToastItem
+    <S.Snackbar
       ref={itemRef}
-      style={{ ["--toast-color" as string]: TOAST_STYLES[toast.type] }}
-      $index={index}
-      $expanded={expanded}
       $visible={visible}
       $leaving={leaving}
-      $hidden={hidden}
-      aria-hidden={hidden || undefined}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
     >
-      <S.ToastInner $muted={!expanded && index > 0}>
-        <S.ToastIconWrapper style={{ background: color }}>
-          {TOAST_ICONS[toast.type]}
-        </S.ToastIconWrapper>
-        <S.ToastContent>
-          <S.ToastTitle>{toast.title}</S.ToastTitle>
+      {/* Swapped in place with no animation: re-running a fade on every
+          message made rapid ones (e.g. repeated Copy) flicker. */}
+      <S.SnackbarContent>
+        <S.SnackbarIcon $type={toast.type} aria-hidden="true">
+          {SNACKBAR_ICONS[toast.type]}
+        </S.SnackbarIcon>
+        <S.SnackbarText>
+          <S.SnackbarTitle>{toast.title}</S.SnackbarTitle>
           {toast.description && (
-            <S.ToastText title={toast.description}>
+            <S.SnackbarSupporting title={toast.description}>
               {toast.description}
-            </S.ToastText>
+            </S.SnackbarSupporting>
           )}
-        </S.ToastContent>
-        <S.ToastClose onClick={() => setLeaving(true)} aria-label="Dismiss">
-          <X size={14} />
-        </S.ToastClose>
-      </S.ToastInner>
-      <S.ToastTimer
-        style={{ background: color }}
-        $duration={TOAST_DURATION}
-        $paused={expanded}
-      />
-    </S.ToastItem>
+        </S.SnackbarText>
+      </S.SnackbarContent>
+      <S.SnackbarClose onClick={() => setLeaving(true)} aria-label="Dismiss">
+        <X size={20} />
+      </S.SnackbarClose>
+    </S.Snackbar>
   );
 };
 
-/**
- * Toasts pile up as a stack: the newest in front, older ones peeking out
- * behind it, smaller and dimmer. Hovering or focusing the stack fans it out
- * into a list and pauses every countdown.
- */
-const ToastStack = ({
-  toasts,
+/** Live region that hosts the single current snackbar. */
+const SnackbarHost = ({
+  toast,
   onRemove,
 }: {
-  toasts: ToastData[];
+  toast: ToastData | undefined;
   onRemove: (id: string) => void;
-}) => {
-  const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    if (toasts.length === 0) setExpanded(false);
-  }, [toasts.length]);
-
-  const count = toasts.length;
-  const height = expanded
-    ? count * (S.TOAST_HEIGHT + S.TOAST_GAP) - S.TOAST_GAP
-    : S.TOAST_HEIGHT +
-      Math.min(Math.max(count - 1, 0), TOAST_STACK_DEPTH - 1) *
-        S.TOAST_PEEK;
-
-  return (
-    <S.ToastContainerWrapper
-      role="status"
-      aria-live="polite"
-      aria-atomic="false"
-      $expanded={expanded}
-      style={{ height: count ? height : 0 }}
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
-      onFocus={() => setExpanded(true)}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null))
-          setExpanded(false);
-      }}
-    >
-      {toasts.map((toast, i) => (
-        <Toast
-          key={toast.id}
-          toast={toast}
-          index={count - 1 - i}
-          expanded={expanded}
-          onRemove={onRemove}
-        />
-      ))}
-    </S.ToastContainerWrapper>
-  );
-};
+}) => (
+  <S.SnackbarHost role="status" aria-live="polite">
+    {toast && <Snackbar toast={toast} onRemove={onRemove} />}
+  </S.SnackbarHost>
+);
 
 const QR_QUIET = 3;
 /** How long the tick stays up before the QR dialog drops away. */
@@ -436,7 +386,7 @@ const HistoryModal = ({
           <S.HistoryWrapper>
             <History size={16} />
           </S.HistoryWrapper>
-          Transfer History
+          Transfer history
           <S.CountBadge>{history.length}</S.CountBadge>
         </S.ModalTitle>
       }
@@ -447,7 +397,7 @@ const HistoryModal = ({
         <S.ModalFooter>
           {history.length > 0 && (
             <Button variant="danger" onClick={onClearHistory}>
-              Clear All
+              Clear all
             </Button>
           )}
           <Button variant="primary" onClick={onClose}>
@@ -577,10 +527,8 @@ export const Home = memo(() => {
 
   const addToast = useCallback(
     (title: string, description: string, type: ToastVariant) => {
-      setToasts((prev) => [
-        ...prev.slice(-(MAX_TOASTS - 1)),
-        { id: crypto.randomUUID(), title, description, type },
-      ]);
+      // MD3 shows one snackbar at a time: a newer message replaces the current.
+      setToasts([{ id: crypto.randomUUID(), title, description, type }]);
     },
     [],
   );
@@ -1299,7 +1247,7 @@ export const Home = memo(() => {
         Skip to main content
       </S.SkipToContent>
 
-      <ToastStack toasts={toasts} onRemove={removeToast} />
+      <SnackbarHost toast={toasts[toasts.length - 1]} onRemove={removeToast} />
 
       <QrModal
         visible={showQr}
@@ -1349,14 +1297,9 @@ export const Home = memo(() => {
             <S.SectionLabel>Your channel</S.SectionLabel>
             <S.ChannelBox>
               <S.ChannelCode aria-label={`Channel code ${joinedChannel ?? "none"}`}>
-                {/* Keyed on the code so each new channel replays the
-                    letter-by-letter flip-in. */}
+                {/* Keyed on the code so a new channel fades in once. */}
                 <S.ChannelChars key={joinedChannel ?? "none"} aria-hidden="true">
-                  {(joinedChannel ?? "······").split("").map((ch, i) => (
-                    <S.ChannelChar key={i} style={{ animationDelay: `${i * 45}ms` }}>
-                      {ch}
-                    </S.ChannelChar>
-                  ))}
+                  {joinedChannel ?? "······"}
                 </S.ChannelChars>
               </S.ChannelCode>
               <S.ActionButtons>
@@ -1388,21 +1331,23 @@ export const Home = memo(() => {
             </S.ChannelBox>
             </S.Section>
           <S.Section>
-          <S.SectionLabel>Join another channel</S.SectionLabel>
           <S.JoinSection>
             <S.InputWrapper>
-              <S.StyledInput
-                onChange={handleCodeChange}
-                onKeyDown={handleCodeKeyDown}
-                placeholder="Code"
-                value={code}
-                maxLength={CHANNEL_CODE_LENGTH}
-                autoComplete="off"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck="false"
-                aria-label="Channel code to join"
-              />
+              <S.OutlinedField $bg="var(--md-surface)">
+                <S.StyledInput
+                  id="channel-code-input"
+                  onChange={handleCodeChange}
+                  onKeyDown={handleCodeKeyDown}
+                  placeholder={`${CHANNEL_CODE_LENGTH} letters or digits`}
+                  value={code}
+                  maxLength={CHANNEL_CODE_LENGTH}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck="false"
+                />
+                <label htmlFor="channel-code-input">Channel code</label>
+              </S.OutlinedField>
             </S.InputWrapper>
             <Tooltip title="Generate new">
               <S.RefreshButton
@@ -1457,8 +1402,8 @@ export const Home = memo(() => {
             <S.SendTabs role="tablist" aria-label="What to send">
               {(
                 [
-                  { key: "file", label: "File", icon: <Upload size={18} /> },
-                  { key: "text", label: "Text", icon: <Type size={18} /> },
+                  { key: "file", label: "File" },
+                  { key: "text", label: "Text" },
                 ] as const
               ).map((tab, i, tabs) => (
                 <S.SendTab
@@ -1481,7 +1426,6 @@ export const Home = memo(() => {
                     document.getElementById(`send-tab-${next.key}`)?.focus();
                   }}
                 >
-                  {tab.icon}
                   {tab.label}
                 </S.SendTab>
               ))}
@@ -1497,27 +1441,21 @@ export const Home = memo(() => {
             aria-hidden={sendMode !== "file" || undefined}
           >
             {transferring ? (
-              <S.LoadingDotsWrapper
-                aria-live="polite"
+              <S.CircularProgress
+                role="progressbar"
                 aria-label="Transfer in progress"
-              >
-                <S.LoadingDot />
-                <S.LoadingDot />
-                <S.LoadingDot />
-              </S.LoadingDotsWrapper>
+              />
             ) : (
               <S.SendButtonWrapper>
                 <S.SendButton
+                  variant="primary"
+                  size="large"
                   onClick={openFilePicker}
                   disabled={!canSend}
                   aria-label="Choose files to send"
                 >
-                  <S.SendButtonIcon aria-hidden="true">
-                    <Upload size={22} />
-                  </S.SendButtonIcon>
-                  <S.SendButtonText>
-                    {isDragging ? "Drop to send" : "Send Files"}
-                  </S.SendButtonText>
+                  <Upload size={20} aria-hidden="true" />
+                  {isDragging ? "Drop to send" : "Send files"}
                 </S.SendButton>
                 <S.PasteHint>
                   {connectionState === "open" && !hasPeer ? (
@@ -1539,19 +1477,21 @@ export const Home = memo(() => {
               $inactive={sendMode !== "text"}
               aria-hidden={sendMode !== "text" || undefined}
             >
-              <S.TextArea
-                id="text-input"
-                aria-label="Text to send"
-                value={textDraft}
-                onChange={(e) => setTextDraft(e.target.value)}
-                onKeyDown={handleTextKeyDown}
-                placeholder={
-                  hasPeer
-                    ? "Type or paste text, a link, a code snippet…"
-                    : "Waiting for another device to join…"
-                }
-                spellCheck="false"
-              />
+              <S.OutlinedField $bg="var(--md-surface-container-low)" $grow>
+                <S.TextArea
+                  id="text-input"
+                  value={textDraft}
+                  onChange={(e) => setTextDraft(e.target.value)}
+                  onKeyDown={handleTextKeyDown}
+                  placeholder={
+                    hasPeer
+                      ? "Text, a link, a code snippet…"
+                      : "Waiting for another device to join…"
+                  }
+                  spellCheck="false"
+                />
+                <label htmlFor="text-input">Message</label>
+              </S.OutlinedField>
               <S.TextComposerFooter>
                 <S.TextHint $over={textDraft.length > MAX_TEXT_CHARS}>
                   {textDraft.length > MAX_TEXT_CHARS
