@@ -46,6 +46,12 @@ export default defineConfig({
       },
     ],
     assetPrefix: "/",
+    // Never inline fonts as data: URIs. Rsbuild inlines assets under 4 KB by
+    // default, and the CSP (font-src 'self') blocks data: fonts, which broke
+    // the smallest Roboto subsets.
+    dataUriLimit: {
+      font: 0,
+    },
   },
   tools: {
     bundlerChain: (chain) => {
