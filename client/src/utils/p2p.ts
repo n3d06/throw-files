@@ -23,11 +23,50 @@ type Signal =
 
 export type P2PControl = { t: "done" } | { t: "abort" };
 
+/**
+ * Classify an ICE candidate line: "host (mDNS)" when the browser hid the LAN
+ * IP behind a .local name, "host (IP)", "srflx" (public address learned via
+ * STUN), "prflx" or "relay".
+ */
+export function candidateKind(candidate: string): string | null {
+  const typ = / typ (\w+)/.exec(candidate)?.[1];
+  if (!typ) return null;
+  if (typ !== "host") return typ;
+  // candidate:<foundation> <component> <proto> <priority> <address> <port> typ host
+  const address = candidate.split(" ")[4] ?? "";
+  return address.endsWith(".local") ? "host (mDNS)" : "host (IP)";
+}
+
+/** What a failed connection gathered, phrased so the user can act on it. */
+export function explainFailure(diag: {
+  local: string[];
+  remote: string[];
+  state: string;
+}): string {
+  const list = (kinds: string[]) => (kinds.length ? kinds.join(", ") : "none");
+  const facts = `This device: ${list(diag.local)}. Other device: ${list(diag.remote)}. State: ${diag.state}.`;
+  let hint: string;
+  if (diag.remote.length === 0) {
+    hint = "The other device sent no addresses: its browser may be blocking WebRTC.";
+  } else if (diag.local.length === 0) {
+    hint = "This browser gathered no addresses: it may be blocking WebRTC.";
+  } else if (!diag.local.includes("srflx") && !diag.remote.includes("srflx")) {
+    hint = "Neither side reached the STUN server, and the local addresses were not reachable.";
+  } else {
+    hint =
+      "Both sides found addresses but couldn't reach each other: usually a firewall (Windows set to a Public network), Wi-Fi client isolation, or a router without NAT hairpinning.";
+  }
+  return `${hint} ${facts}`;
+}
+
 /** A peer connection for one transfer, plus its signalling subscription. */
 class Link {
   readonly pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private closed = false;
+  /** Candidate kinds seen on each side, for failure diagnostics. */
+  private readonly localKinds = new Set<string>();
+  private readonly remoteKinds = new Set<string>();
   private readonly onSignal = ({ id, data }: { id: string; data: string }) => {
     if (id !== this.id || this.closed) return;
     let signal: Signal;
@@ -46,8 +85,20 @@ class Link {
   ) {
     socket.on("rtc", this.onSignal);
     this.pc.onicecandidate = ({ candidate }) => {
-      if (candidate) this.send({ kind: "candidate", candidate: candidate.toJSON() });
+      if (!candidate) return;
+      const kind = candidateKind(candidate.candidate);
+      if (kind) this.localKinds.add(kind);
+      this.send({ kind: "candidate", candidate: candidate.toJSON() });
     };
+  }
+
+  /** Human-readable account of why this link may not have connected. */
+  describe(): string {
+    return explainFailure({
+      local: [...this.localKinds],
+      remote: [...this.remoteKinds],
+      state: this.pc.iceConnectionState,
+    });
   }
 
   send(signal: Signal): void {
@@ -57,6 +108,8 @@ class Link {
   private async handle(signal: Signal): Promise<void> {
     try {
       if (signal.kind === "candidate") {
+        const kind = candidateKind(signal.candidate.candidate ?? "");
+        if (kind) this.remoteKinds.add(kind);
         if (this.pc.remoteDescription) await this.pc.addIceCandidate(signal.candidate);
         else this.pendingCandidates.push(signal.candidate);
         return;
@@ -105,8 +158,11 @@ export function connectAsSender(
   return new Promise<P2PConnection>((resolve, reject) => {
     const fail = (reason: string) => {
       clearTimeout(timer);
+      // Read the diagnostics before close() tears the connection down.
+      const detail = link.describe();
       link.close();
-      reject(new Error(reason));
+      console.info(`[p2p] ${reason}. ${detail}`);
+      reject(new Error(`${reason}. ${detail}`));
     };
     const timer = setTimeout(() => fail("P2P connection timed out"), timeoutMs);
     link.pc.onconnectionstatechange = () => {
@@ -137,7 +193,7 @@ export function listenAsReceiver(
   socket: ThrowSocket,
   id: string,
   onChannel: (channel: RTCDataChannel) => void,
-): { close(): void } {
+): { close(): void; describe(): string } {
   // eslint-disable-next-line prefer-const
   let link: Link;
   const answer = async () => {
@@ -151,7 +207,7 @@ export function listenAsReceiver(
     if (channel.readyState === "open") onChannel(channel);
     else channel.onopen = () => onChannel(channel);
   };
-  return { close: () => link.close() };
+  return { close: () => link.close(), describe: () => link.describe() };
 }
 
 /** Resolve once the channel's send buffer has drained below the low mark. */

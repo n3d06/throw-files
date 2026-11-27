@@ -289,10 +289,12 @@ class ThrowFileUpload {
     }
     if (route === "p2p" || route === "p2p-or-relay") {
       let connection: P2PConnection | null = null;
+      let p2pError = "";
       try {
         connection = await connectAsSender(this.socket, id, P2P_CONNECT_TIMEOUT_MS);
-      } catch {
+      } catch (error) {
         connection = null;
+        p2pError = error instanceof Error ? error.message : "";
       }
       if (this.aborted.has(id)) {
         connection?.close();
@@ -301,7 +303,7 @@ class ThrowFileUpload {
       if (connection) return this.sendOverP2P(file, info, connection);
       if (route === "p2p") {
         this.fail(id, UploadError.P2PFailed, {
-          message: `Couldn't connect directly to send ${info.name}. Try Auto mode to fall back to the relay.`,
+          message: `Couldn't connect directly to send ${info.name}. ${p2pError} Auto mode would fall back to the relay.`,
         });
         return;
       }
@@ -486,7 +488,12 @@ class ThrowFileUpload {
   ): void {
     if (id) {
       this.cleanup(id);
-      this.socket.emit("file-abort", { id });
+      // Tells receivers why, so a P2P failure is not shown as a cancel.
+      const reason =
+        code === UploadError.P2PFailed || code === UploadError.P2PRefused
+          ? "p2p-failed"
+          : undefined;
+      this.socket.emit("file-abort", { id, reason });
     }
     this.dispatch("error", { id, code, message });
   }

@@ -217,6 +217,8 @@ export class ThrowFilesChannel {
             channel,
             id: String(msg.id ?? ""),
             name: String(msg.name ?? ""),
+            // Why the sender stopped; only known values are passed on.
+            reason: msg.reason === "p2p-failed" ? "p2p-failed" : undefined,
           },
           ws,
         );

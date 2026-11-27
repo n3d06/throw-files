@@ -172,7 +172,7 @@ interface ReceiveBuffer {
   /** How bytes are arriving, once the first one does. */
   path?: TransferPath;
   /** Waiting for (or holding) the sender's DataChannel, when P2P is allowed. */
-  p2p?: { close(): void };
+  p2p?: { close(): void; describe(): string };
   bytes: number;
   info: { name: string; type: string; size: number; compressed: boolean };
   timeoutId: ReturnType<typeof setTimeout>;
@@ -1130,15 +1130,32 @@ export const Home = memo(() => {
       );
     };
 
-    const onFileAbort = (data: { id: string; name?: string }) => {
+    const onFileAbort = (data: {
+      id: string;
+      name?: string;
+      reason?: "p2p-failed";
+    }) => {
       const offer = offersRef.current.find((o) => o.id === data.id);
       if (offer) {
         setOffers((prev) => prev.filter((o) => o.id !== data.id));
         addToast("Offer withdrawn", `${offer.name} is no longer being sent.`, "info");
         return;
       }
-      if (!buffersRef.current[data.id]) return;
-      const name = buffersRef.current[data.id].info.name;
+      const buffer = buffersRef.current[data.id];
+      if (!buffer) return;
+      const { name } = buffer.info;
+      if (data.reason === "p2p-failed") {
+        // This side's view of the attempt complements the sender's.
+        const detail = buffer.p2p?.describe() ?? "";
+        console.info(`[p2p] receive of ${name} failed. ${detail}`);
+        discardBuffer(data.id);
+        addToast(
+          "Couldn't connect directly (P2P)",
+          `${name} was not sent. ${detail}`,
+          "warning",
+        );
+        return;
+      }
       discardBuffer(data.id);
       addToast("Sender cancelled", `${name} was not sent.`, "warning");
     };

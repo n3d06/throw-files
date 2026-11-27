@@ -273,7 +273,11 @@ export class ThrowSocket {
         });
         break;
       case "file-abort":
-        this.fire("file-abort", { id: msg.id, name: msg.name });
+        this.fire("file-abort", {
+          id: msg.id,
+          name: msg.name,
+          reason: msg.reason === "p2p-failed" ? "p2p-failed" : undefined,
+        });
         break;
       case "file-offer":
         if (msg.channel !== this.channel || typeof msg.id !== "string" || !msg.id)
