@@ -37,7 +37,8 @@ export const CardHeader = ({
 
 const GlassCard = styled.div`
   background: var(--bg-card);
-  box-shadow: var(--bevel-etch);
+  box-shadow: var(--shadow-xl);
   border-radius: var(--radius-lg);
   position: relative;
+  color: var(--text-primary);
 `;

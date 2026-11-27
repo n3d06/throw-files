@@ -1,6 +1,6 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import styled, { keyframes } from "styled-components";
+import styled, { css, keyframes } from "styled-components";
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -8,9 +8,24 @@ const fadeIn = keyframes`
 `;
 
 const popIn = keyframes`
-  from { opacity: 0; transform: translateY(12px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: scale(0.7); }
+  60% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
 `;
+
+const fadeOut = keyframes`
+  from { opacity: 1; }
+  to { opacity: 0; }
+`;
+
+/** Closing: the dialog sinks down and fades out. */
+const dropOut = keyframes`
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  25% { opacity: 1; transform: translateY(-6px) scale(1.01); }
+  100% { opacity: 0; transform: translateY(60px) scale(0.92); }
+`;
+
+const CLOSE_MS = 320;
 
 interface ModalProps {
   visible: boolean;
@@ -92,15 +107,34 @@ export const Modal = ({
     };
   }, [visible]);
 
-  if (!visible) return null;
+  // Stay mounted for the closing animation after `visible` turns false.
+  const [rendered, setRendered] = useState(visible);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    if (visible) {
+      setRendered(true);
+      setClosing(false);
+      return;
+    }
+    setClosing(true);
+    const t = setTimeout(() => {
+      setRendered(false);
+      setClosing(false);
+    }, CLOSE_MS);
+    return () => clearTimeout(t);
+  }, [visible]);
+
+  if (!rendered) return null;
 
   return ReactDOM.createPortal(
     <Overlay
+      $closing={closing}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <Box
+        $closing={closing}
         ref={modalRef}
         role="dialog"
         aria-modal="true"
@@ -112,7 +146,7 @@ export const Modal = ({
           <Header>
             <Title id="modal-title">{title}</Title>
             <CloseBtn onClick={onClose} aria-label="Close">
-              <X size={16} />
+              <X size={24} />
             </CloseBtn>
           </Header>
         )}
@@ -124,8 +158,12 @@ export const Modal = ({
   );
 };
 
-const Overlay = styled.div`
-  animation: ${fadeIn} 0.18s ease both;
+const Overlay = styled.div<{ $closing: boolean }>`
+  animation: ${(p) =>
+    p.$closing
+      ? css`${fadeOut} ${CLOSE_MS}ms ease both`
+      : css`${fadeIn} 0.18s ease both`};
+  pointer-events: ${(p) => (p.$closing ? "none" : "auto")};
   position: fixed;
   inset: 0;
   z-index: 1050;
@@ -133,19 +171,19 @@ const Overlay = styled.div`
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(41, 38, 27, 0.35);
-
-  @supports not (backdrop-filter: blur(8px)) {
-    background: rgba(41, 38, 27, 0.7);
-  }
+  background: var(--overlay);
+  backdrop-filter: blur(3px);
 
 `;
 
-const Box = styled.div`
-  animation: ${popIn} 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  background: var(--bg-card);
-  box-shadow: 0 8px 32px rgba(41, 38, 27, 0.18), inset 0 0 0 1px var(--border-medium);
-  border-radius: var(--radius-xl);
+const Box = styled.div<{ $closing: boolean }>`
+  animation: ${(p) =>
+    p.$closing
+      ? css`${dropOut} ${CLOSE_MS}ms cubic-bezier(0.5, 0, 0.75, 0) both`
+      : css`${popIn} 0.35s cubic-bezier(0.34, 1.3, 0.64, 1) both`};
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-xl), var(--shadow-lg);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   /* Keep a tall dialog inside the viewport and let the body scroll instead. */
   display: flex;
@@ -157,15 +195,15 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 8px 0 20px;
+  padding: 16px 12px 0 16px;
   min-height: 48px;
   flex-shrink: 0;
 `;
 
 const Title = styled.div`
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: 18px;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 24px;
   color: var(--title-fg);
   display: flex;
   align-items: center;
@@ -173,41 +211,39 @@ const Title = styled.div`
 `;
 
 const CloseBtn = styled.button`
-  transition: background 0.15s, transform 0.12s;
+  transition: color 0.15s, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--text-primary);
+  color: var(--text-tertiary);
   font-size: 14px;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    background: var(--hover-bg);
-  }
-
-  &:active {
-    transform: scale(0.9);
+    color: var(--text-primary);
+    transform: rotate(90deg);
   }
 
 `;
 
 const Body = styled.div`
-  padding: 12px 20px 20px;
-  color: var(--text-primary);
+  padding: 12px 16px 20px;
+  color: var(--text-secondary);
   overflow-y: auto;
   flex: 1;
 `;
 
 const Footer = styled.div`
-  padding: 0 20px 20px;
+  padding: 16px;
+  background: var(--bg-secondary);
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
 `;
 

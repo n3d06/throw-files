@@ -28,7 +28,7 @@ const Wrapper = styled.div`
   &:focus-within > span:last-child {
     opacity: 1;
     visibility: visible;
-    transform: translateX(-50%) translateY(-4px);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 `;
 
@@ -36,13 +36,20 @@ const Tip = styled.span`
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(0);
-  background: #29261b;
+  transform: translateX(-50%) translateY(4px) scale(0.9);
+  transform-origin: 50% 100%;
+  transition:
+    opacity 0.15s ease,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    visibility 0.15s;
+  background: var(--floating-bg);
   border: none;
-  color: #faf9f5;
-  font-size: 12px;
-  line-height: 1.5;
-  padding: 4px 8px;
+  box-shadow: var(--floating-shadow);
+  color: var(--floating-fg);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   white-space: pre-wrap;
   max-width: 260px;

@@ -1,5 +1,16 @@
 import { Link } from "react-router-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
+
+const slideDown = keyframes`
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+`;
+
+const wiggle = keyframes`
+  0%, 100% { transform: rotate(0) scale(1.1); }
+  25% { transform: rotate(-12deg) scale(1.1); }
+  75% { transform: rotate(12deg) scale(1.1); }
+`;
 import { Github } from "lucide-react";
 
 export const Header = () => {
@@ -37,36 +48,45 @@ const HeaderContainer = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px 0 16px;
+  padding: 0 8px 0 16px;
   height: 48px;
   background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+  animation: ${slideDown} 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 `;
 
 const LogoLink = styled(Link)`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   text-decoration: none;
 `;
 
 const LogoMark = styled.div`
-  width: 20px;
-  height: 20px;
-  background: transparent;
-  border-radius: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: border-radius 0.25s, background 0.25s;
+
+  a:hover > & {
+    border-radius: 30%;
+    background: var(--accent-hover);
+    animation: ${wiggle} 0.5s ease-in-out;
+  }
 `;
 
 const UploadIcon = ({ children }: { children: React.ReactNode }) => (
   <svg
-    width="18"
-    height="18"
+    width="16"
+    height="16"
     viewBox="0 0 24 24"
     fill="none"
-    stroke="#c0392b"
+    stroke="#ffffff"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -76,8 +96,9 @@ const UploadIcon = ({ children }: { children: React.ReactNode }) => (
 );
 
 const LogoText = styled.span`
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
   color: var(--title-fg);
 `;
 
@@ -91,17 +112,20 @@ const navItemStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
   color: var(--text-secondary);
   font-size: 17px;
   background: transparent;
   cursor: pointer;
   border: none;
+  transition: background 0.15s, color 0.15s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:hover {
-    background: #e5e5e5;
+    color: var(--title-fg);
+    background: var(--bg-modifier-hover);
+    transform: rotate(-10deg) scale(1.1);
   }
 
 `;

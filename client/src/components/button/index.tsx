@@ -107,20 +107,39 @@ const variantStyles: Record<NonNullable<Variant>, ReturnType<typeof css>> = {
     &&:active:not(:disabled) {
       background: var(--accent-hover);
       box-shadow: none;
-      transform: scale(0.97);
+      transform: scale(0.95);
     }
   `,
   secondary: css``,
   danger: css`
-    color: var(--danger);
+    background: var(--danger);
+    color: #fff;
+
+    &&:hover:not(:disabled),
+    &&:active:not(:disabled) {
+      background: var(--danger-hover);
+    }
   `,
   success: css`
-    color: var(--success);
+    background: var(--success);
+    color: #fff;
+
+    &&:hover:not(:disabled),
+    &&:active:not(:disabled) {
+      background: var(--success-hover);
+    }
   `,
   tertiary: css``,
   text: css`
     background: transparent;
     box-shadow: none;
+    color: var(--text-link);
+
+    &&:hover:not(:disabled),
+    &&:active:not(:disabled) {
+      background: transparent;
+      text-decoration: underline;
+    }
   `,
 };
 
@@ -140,10 +159,13 @@ const Btn = styled.button<{
   border: none;
   border-radius: var(--radius-pill);
   font-weight: 500;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+  transition:
+    background 0.17s,
+    box-shadow 0.2s,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   background: var(--w-face);
-  color: var(--text-primary);
-  box-shadow: var(--bevel-out);
+  color: #fff;
+  box-shadow: none;
 
   ${(p) => sizeStyles[p.$size]}
   ${(p) => variantStyles[p.$variant]}
@@ -151,12 +173,13 @@ const Btn = styled.button<{
   &:hover:not(:disabled) {
     background: var(--hover-bg);
     box-shadow: var(--hover-shadow);
+    transform: translateY(-1px);
   }
 
   &:active:not(:disabled) {
     background: var(--press-bg);
     box-shadow: var(--press-shadow);
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
 
   &:disabled {

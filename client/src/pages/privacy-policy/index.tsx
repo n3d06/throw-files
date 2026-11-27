@@ -180,7 +180,7 @@ const PageHeader = styled.header`
     margin: 0 0 8px;
     font-size: clamp(26px, 6vw, 32px);
     letter-spacing: -1px;
-    color: var(--text-primary);
+    color: var(--title-fg);
   }
 `;
 
@@ -195,9 +195,11 @@ const UpdatedAt = styled.p`
 const Section = styled.section`
   h2 {
     margin: 0 0 10px;
-    font-size: 17px;
+    font-size: 12px;
     font-weight: 700;
-    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
   }
 
   p {
@@ -216,18 +218,21 @@ const Section = styled.section`
   }
 
   code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: var(--font-code);
     font-size: 13px;
-    padding: 2px 6px;
-    border-radius: 0;
-    background: var(--bg-glass);
-    border: 1px solid var(--border-subtle);
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
   }
 `;
 
 const PolicyLink = styled.a`
-  color: var(--accent-primary);
-  text-decoration: underline;
+  color: var(--text-link);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
   text-underline-offset: 2px;
 
   &:focus-visible {

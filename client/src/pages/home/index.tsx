@@ -1,6 +1,7 @@
 import {
   memo,
   useEffect,
+  useLayoutEffect,
   useRef,
   useMemo,
   useState,
@@ -27,8 +28,7 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  WifiOff,
-  Wifi,
+  Check,
 } from "lucide-react";
 import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
@@ -64,7 +64,9 @@ const FRONTEND_URL: string =
 
 const TRANSFER_TIMEOUT = 5 * 60 * 1000;
 const TOAST_DURATION = 5000;
-const MAX_TOASTS = 4;
+const MAX_TOASTS = 5;
+/** How many toasts show in the collapsed stack; the rest wait behind them. */
+const TOAST_STACK_DEPTH = 3;
 const OBJECT_URL_TTL = 60_000;
 
 const TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
@@ -145,44 +147,63 @@ function formatTime(at: number): string {
 }
 
 const TOAST_ICONS: Record<ToastVariant, JSX.Element> = {
-  success: <CheckCircle size={16} />,
-  error: <AlertCircle size={16} />,
-  warning: <AlertCircle size={16} />,
-  info: <Info size={16} />,
+  success: <Check size={16} strokeWidth={3} />,
+  error: <AlertCircle size={16} strokeWidth={2.5} />,
+  warning: <AlertCircle size={16} strokeWidth={2.5} />,
+  info: <Info size={16} strokeWidth={2.5} />,
 };
 
-// Snackbar: dark surface, so the variant colours are the light tints.
 const TOAST_STYLES: Record<ToastVariant, string> = {
-  success: "#8fd19e",
-  error: "#ff9a8d",
-  warning: "#f0c36a",
-  info: "#f3b0a6",
+  success: "#23a55a",
+  error: "#f23f43",
+  warning: "#f0b232",
+  info: "#c0392b",
 };
 
 const Toast = ({
   toast,
+  index,
+  expanded,
   onRemove,
 }: {
   toast: ToastData;
+  /** 0 is the newest toast, at the front of the stack. */
+  index: number;
+  expanded: boolean;
   onRemove: (id: string) => void;
 }) => {
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const remainingRef = useRef(TOAST_DURATION);
 
-  // Held in a ref so the dismiss timer below can depend on nothing. Keying the
-  // effect on the callback restarted the countdown on every parent render, so
-  // toasts never auto-dismissed while a transfer was ticking.
+  // Held in a ref so the timers below never restart because the parent passed
+  // a new callback. Keying on it restarted the countdown on every parent
+  // render, so toasts never auto-dismissed while a transfer was ticking.
   const onRemoveRef = useRef(onRemove);
   onRemoveRef.current = onRemove;
 
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setVisible(true));
-    const dismiss = setTimeout(() => setLeaving(true), TOAST_DURATION);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(dismiss);
-    };
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  // Reading layout forces the browser to compute the off-screen starting
+  // style before `visible` flips, so the slide-in transitions. Waiting on
+  // requestAnimationFrame instead stalled in background tabs, where frames
+  // never fire, and left toasts stuck invisible.
+  useLayoutEffect(() => {
+    itemRef.current?.getBoundingClientRect();
+    setVisible(true);
   }, []);
+
+  // The countdown pauses while the stack is expanded (hovered or focused), so
+  // a toast cannot vanish from under the pointer; it resumes where it left off.
+  useEffect(() => {
+    if (expanded || leaving) return;
+    const started = Date.now();
+    const dismiss = setTimeout(() => setLeaving(true), remainingRef.current);
+    return () => {
+      clearTimeout(dismiss);
+      remainingRef.current -= Date.now() - started;
+    };
+  }, [expanded, leaving]);
 
   useEffect(() => {
     if (!leaving) return;
@@ -191,39 +212,141 @@ const Toast = ({
   }, [leaving, toast.id]);
 
   const color = TOAST_STYLES[toast.type];
+  const hidden = !expanded && index >= TOAST_STACK_DEPTH;
 
   return (
-    <S.ToastContainer
+    <S.ToastItem
+      ref={itemRef}
+      $index={index}
+      $expanded={expanded}
       $visible={visible}
       $leaving={leaving}
+      $hidden={hidden}
+      aria-hidden={hidden || undefined}
     >
-      <S.ToastIconWrapper style={{ color }}>
-        {TOAST_ICONS[toast.type]}
-      </S.ToastIconWrapper>
-      <S.ToastContent>
-        <S.ToastText title={toast.description || toast.title}>
-          {toast.description || toast.title}
-        </S.ToastText>
-      </S.ToastContent>
-      <S.ToastClose onClick={() => setLeaving(true)} aria-label="Dismiss">
-        <X size={12} />
-      </S.ToastClose>
-    </S.ToastContainer>
+      <S.ToastInner $muted={!expanded && index > 0}>
+        <S.ToastIconWrapper style={{ background: color }}>
+          {TOAST_ICONS[toast.type]}
+        </S.ToastIconWrapper>
+        <S.ToastContent>
+          <S.ToastTitle>{toast.title}</S.ToastTitle>
+          {toast.description && (
+            <S.ToastText title={toast.description}>
+              {toast.description}
+            </S.ToastText>
+          )}
+        </S.ToastContent>
+        <S.ToastClose onClick={() => setLeaving(true)} aria-label="Dismiss">
+          <X size={14} />
+        </S.ToastClose>
+      </S.ToastInner>
+      <S.ToastTimer
+        style={{ background: color }}
+        $duration={TOAST_DURATION}
+        $paused={expanded}
+      />
+    </S.ToastItem>
+  );
+};
+
+/**
+ * Toasts pile up as a stack: the newest in front, older ones peeking out
+ * behind it, smaller and dimmer. Hovering or focusing the stack fans it out
+ * into a list and pauses every countdown.
+ */
+const ToastStack = ({
+  toasts,
+  onRemove,
+}: {
+  toasts: ToastData[];
+  onRemove: (id: string) => void;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (toasts.length === 0) setExpanded(false);
+  }, [toasts.length]);
+
+  const count = toasts.length;
+  const height = expanded
+    ? count * (S.TOAST_HEIGHT + S.TOAST_GAP) - S.TOAST_GAP
+    : S.TOAST_HEIGHT +
+      Math.min(Math.max(count - 1, 0), TOAST_STACK_DEPTH - 1) *
+        S.TOAST_PEEK;
+
+  return (
+    <S.ToastContainerWrapper
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      $expanded={expanded}
+      style={{ height: count ? height : 0 }}
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      onFocus={() => setExpanded(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+          setExpanded(false);
+      }}
+    >
+      {toasts.map((toast, i) => (
+        <Toast
+          key={toast.id}
+          toast={toast}
+          index={count - 1 - i}
+          expanded={expanded}
+          onRemove={onRemove}
+        />
+      ))}
+    </S.ToastContainerWrapper>
   );
 };
 
 const QR_QUIET = 3;
+/** How long the tick stays up before the QR dialog drops away. */
+const QR_SUCCESS_HOLD_MS = 1500;
 
 /** Renders `value` as an inline SVG QR code (dark modules on a white quiet zone). */
 const QrModal = ({
   visible,
   onClose,
   value,
+  joinSignal,
 }: {
   visible: boolean;
   onClose: () => void;
   value: string;
+  /** Bumped each time another device joins the channel. */
+  joinSignal: number;
 }) => {
+  // A device joining while the code is on screen almost certainly means it was
+  // just scanned: morph the QR into a tick, then let the dialog drop away.
+  const [scanned, setScanned] = useState(false);
+  const seenSignal = useRef(joinSignal);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!visible) {
+      seenSignal.current = joinSignal;
+      return;
+    }
+    if (joinSignal !== seenSignal.current) {
+      seenSignal.current = joinSignal;
+      setScanned(true);
+    }
+  }, [visible, joinSignal]);
+
+  useEffect(() => {
+    if (visible) setScanned(false);
+  }, [visible]);
+
+  useEffect(() => {
+    if (!scanned) return;
+    const t = setTimeout(() => onCloseRef.current(), QR_SUCCESS_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [scanned]);
+
   const { n, path } = useMemo(() => {
     const qr = qrcode(0, "M");
     qr.addData(value);
@@ -237,19 +360,32 @@ const QrModal = ({
   }, [value]);
   const quiet = QR_QUIET;
   return (
-    <Modal visible={visible} onClose={onClose} title="Scan to open" width={340}>
-      <svg
-        viewBox={`0 0 ${n + quiet * 2} ${n + quiet * 2}`}
-        role="img"
-        aria-label={`QR code for ${value}`}
-        style={{ width: "100%", display: "block", background: "#fff" }}
-        shapeRendering="crispEdges"
-      >
-        <path d={path} fill="#000" />
-      </svg>
-      <p style={{ marginTop: 12, fontSize: 12, wordBreak: "break-all" }}>
-        {value}
-      </p>
+    <Modal
+      visible={visible}
+      onClose={onClose}
+      title={scanned ? "Device connected" : "Scan to open"}
+      width={340}
+    >
+      <S.QrStage $scanned={scanned}>
+        <svg
+          className="qr"
+          viewBox={`0 0 ${n + quiet * 2} ${n + quiet * 2}`}
+          role="img"
+          aria-label={`QR code for ${value}`}
+          shapeRendering="crispEdges"
+        >
+          <path d={path} fill="#000" />
+        </svg>
+        {scanned && (
+          <S.QrTick role="img" aria-label="Device connected">
+            <svg viewBox="0 0 52 52">
+              <circle className="disc" cx="26" cy="26" r="25" />
+              <path className="mark" d="M14.5 27.5l7.5 7.5 16-16" />
+            </svg>
+          </S.QrTick>
+        )}
+      </S.QrStage>
+      <S.QrCaption $scanned={scanned}>{value}</S.QrCaption>
     </Modal>
   );
 };
@@ -376,6 +512,7 @@ export const Home = memo(() => {
     socket.connectionState,
   );
   const [connectedUsers, setConnectedUsers] = useState(0);
+  const [peerJoinCount, setPeerJoinCount] = useState(0);
   // Read inside sendFiles, which must not be recreated on every count change.
   const connectedUsersRef = useRef(0);
   connectedUsersRef.current = connectedUsers;
@@ -385,6 +522,7 @@ export const Home = memo(() => {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -609,6 +747,7 @@ export const Home = memo(() => {
 
     const onPeerJoined = () => {
       vibrate();
+      setPeerJoinCount((n) => n + 1);
       addToast("Peer joined", "Someone else is on this channel.", "info");
     };
 
@@ -951,10 +1090,18 @@ export const Home = memo(() => {
     try {
       await navigator.clipboard.writeText(value);
       addToast("Copied", "Channel code copied.", "success");
+      setCopied(true);
     } catch {
       fallbackCopy(value);
     }
   }, [joinedChannel, code, addToast, fallbackCopy]);
+
+  // Swap the copy icon for a tick briefly after a successful copy.
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
 
   const shareLink = useCallback(async () => {
     const url = `${FRONTEND_URL}/?channel=${joinedChannel ?? code}`;
@@ -1003,20 +1150,13 @@ export const Home = memo(() => {
         Skip to main content
       </S.SkipToContent>
 
-      <S.ToastContainerWrapper
-        role="status"
-        aria-live="polite"
-        aria-atomic="false"
-      >
-        {toasts.map((toast) => (
-          <Toast key={toast.id} toast={toast} onRemove={removeToast} />
-        ))}
-      </S.ToastContainerWrapper>
+      <ToastStack toasts={toasts} onRemove={removeToast} />
 
       <QrModal
         visible={showQr}
         onClose={() => setShowQr(false)}
         value={`${FRONTEND_URL}/?channel=${joinedChannel ?? code}`}
+        joinSignal={peerJoinCount}
       />
 
       <HistoryModal
@@ -1029,17 +1169,30 @@ export const Home = memo(() => {
       <S.MainContainer id="main-content" role="main" tabIndex={-1}>
         <S.Panel>
           <S.PanelBody>
+            <S.Section>
+            <S.SectionLabel>Your channel</S.SectionLabel>
             <S.ChannelBox>
               <S.ChannelCode aria-label={`Channel code ${joinedChannel ?? "none"}`}>
-                {joinedChannel ?? "······"}
+                {/* Keyed on the code so each new channel replays the
+                    letter-by-letter flip-in. */}
+                <S.ChannelChars key={joinedChannel ?? "none"} aria-hidden="true">
+                  {(joinedChannel ?? "······").split("").map((ch, i) => (
+                    <S.ChannelChar key={i} style={{ animationDelay: `${i * 45}ms` }}>
+                      {ch}
+                    </S.ChannelChar>
+                  ))}
+                </S.ChannelChars>
               </S.ChannelCode>
               <S.ActionButtons>
                 <S.IconButton
                   onClick={copyCode}
                   title="Copy code"
                   aria-label="Copy channel code"
+                  $success={copied}
                 >
-                  <Copy size={16} />
+                  <S.SwapIcon key={copied ? "done" : "copy"}>
+                    {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} />}
+                  </S.SwapIcon>
                 </S.IconButton>
                 <S.IconButton
                   onClick={shareLink}
@@ -1057,6 +1210,9 @@ export const Home = memo(() => {
                 </S.IconButton>
               </S.ActionButtons>
             </S.ChannelBox>
+            </S.Section>
+          <S.Section>
+          <S.SectionLabel>Join another channel</S.SectionLabel>
           <S.JoinSection>
             <S.InputWrapper>
               <S.StyledInput
@@ -1073,17 +1229,17 @@ export const Home = memo(() => {
               />
             </S.InputWrapper>
             <Tooltip title="Generate new">
-              <S.IconButtonSecondary
+              <S.RefreshButton
                 onClick={handleGenerate}
                 aria-label="Generate a new channel code"
               >
                 <RefreshCw size={16} />
-              </S.IconButtonSecondary>
+              </S.RefreshButton>
             </Tooltip>
             <Button
               variant="primary"
               onClick={() => joinChannel(code)}
-              style={{ height: 36 }}
+              style={{ height: 38 }}
               disabled={
                 !isValidChannelCode(code) ||
                 transferring ||
@@ -1094,14 +1250,11 @@ export const Home = memo(() => {
               Join
             </Button>
           </S.JoinSection>
+          </S.Section>
                 <S.StatusRow>
                 <S.StatusLine $state={connectionState} role="status" aria-live="polite">
-                  {connectionState === "open" ? (
-                    <Wifi size={14} aria-hidden="true" />
-                  ) : (
-                    <WifiOff size={14} aria-hidden="true" />
-                  )}
-                  <span>{CONNECTION_LABEL[connectionState]}</span>
+                  <S.LiveDot $state={connectionState} aria-hidden="true" />
+                  <span key={connectionState}>{CONNECTION_LABEL[connectionState]}</span>
                   {connectionState === "failed" && (
                     <S.BannerAction onClick={retryConnection}>Retry</S.BannerAction>
                   )}
@@ -1109,8 +1262,8 @@ export const Home = memo(() => {
                 <S.DeviceCount>
                   <Users size={14} />
                   <span>
-                    {connectedUsers} {connectedUsers === 1 ? "device" : "devices"}{" "}
-                    on this channel
+                    <S.CountPop key={connectedUsers}>{connectedUsers}</S.CountPop>{" "}
+                    {connectedUsers === 1 ? "device" : "devices"} on this channel
                   </span>
                 </S.DeviceCount>
                 </S.StatusRow>
@@ -1159,6 +1312,8 @@ export const Home = memo(() => {
             )}
           </S.FileSection>
           {transfers.length > 0 && (
+            <S.Section>
+            <S.SectionLabel>In progress — {transfers.length}</S.SectionLabel>
             <S.TransferList>
               {transfers.map((transfer) => {
                 const receiving = transfer.direction === "receive";
@@ -1217,9 +1372,12 @@ export const Home = memo(() => {
                 );
               })}
             </S.TransferList>
+            </S.Section>
           )}
 
           {readyFiles.length > 0 && (
+            <S.Section>
+            <S.SectionLabel>Ready to save — {readyFiles.length}</S.SectionLabel>
             <S.ReadyList aria-label="Files ready to save">
               {readyFiles.map((file) => (
                 <S.ReadyItem key={file.id}>
@@ -1253,9 +1411,11 @@ export const Home = memo(() => {
                 </S.ReadyItem>
               ))}
             </S.ReadyList>
+            </S.Section>
           )}
                 {recentHistory.length > 0 && (
-                  <div>
+                  <S.Section>
+                    <S.SectionLabel>Recent activity</S.SectionLabel>
                     {recentHistory.map((file) => {
                       const type =
                         file.direction === "send" ? "sent" : "received";
@@ -1264,9 +1424,9 @@ export const Home = memo(() => {
                           <S.InlineLeft>
                             <S.InlineStatusBadge $type={type}>
                               {file.direction === "send" ? (
-                                <ArrowUp size={12} />
+                                <ArrowUp size={16} />
                               ) : (
-                                <ArrowDown size={12} />
+                                <ArrowDown size={16} />
                               )}
                             </S.InlineStatusBadge>
                             <S.InlineFileName title={file.name}>
@@ -1282,7 +1442,7 @@ export const Home = memo(() => {
                         </S.InlineHistoryItem>
                       );
                     })}
-                  </div>
+                  </S.Section>
                 )}
                 {history.length > 0 && (
                   <S.ViewAllButton onClick={() => setShowHistoryModal(true)}>

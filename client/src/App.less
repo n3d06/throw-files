@@ -1,5 +1,5 @@
-/* Calm, warm look: off-white page, white cards, soft 1px borders, rounded
-   corners, one terracotta accent. Light only. Variable names from earlier
+/* Dark chat-app look: layered charcoal surfaces, red accent (matches the favicon), 4px buttons,
+   8px panels, small uppercase section labels. Variable names from earlier
    revisions are kept so components that only read colours keep working.
    No remote font import: system fonts only. */
 
@@ -12,46 +12,50 @@
 }
 
 :root {
-  --w-face: #ffffff; /* button surface */
-  --w-light: #f5f4ee; /* hover rows, drop-zone highlight */
-  --w-field: #ffffff;
+  color-scheme: light dark;
+
+  --w-face: #4e5058; /* secondary button surface */
+  --w-light: #35373c; /* hover rows, drop-zone highlight */
+  --w-field: #1e1f22;
   --w-title: transparent;
-  --title-fg: #29261b;
+  --title-fg: #f2f3f5;
   --accent: #c0392b;
-  --accent-hover: #a12e22;
+  --accent-hover: #a93226;
 
   /* Border tokens (names from the earlier bevel revision). */
-  --bevel-out: inset 0 0 0 1px #dedbcd;
-  --bevel-in: inset 0 0 0 1px #d6d3c4;
-  --bevel-etch: inset 0 0 0 1px #ebe9df;
-  --hover-bg: #f5f4ee;
-  --hover-shadow: inset 0 0 0 1px #c9c5b3;
-  --press-bg: #ebe9df;
-  --press-shadow: inset 0 0 0 1px #c9c5b3;
+  --bevel-out: none;
+  --bevel-in: none;
+  --bevel-etch: none;
+  --hover-bg: #6d6f78;
+  --hover-shadow: none;
+  --press-bg: #80848e;
+  --press-shadow: none;
 
-  --radius-sm: 6px;
-  --radius-pill: 999px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 3px;
+  --radius-pill: 4px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
 
-  --bg-primary: #faf9f5;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f5f4ee;
-  --bg-elevated: #ffffff;
-  --bg-glass: #f5f4ee;
-  --bg-glass-hover: #ebe9df;
-  --bg-card: #ffffff;
-  --bg-card-hover: #ffffff;
+  --bg-primary: #313338; /* main area */
+  --bg-secondary: #2b2d31; /* panels */
+  --bg-tertiary: #1e1f22; /* inputs, deepest layer */
+  --bg-elevated: #232428;
+  --bg-glass: #2b2d31;
+  --bg-glass-hover: #35373c;
+  --bg-card: #2b2d31;
+  --bg-card-hover: #35373c;
+  --bg-modifier-hover: rgba(78, 80, 88, 0.3);
+  --bg-modifier-active: rgba(78, 80, 88, 0.48);
 
   --accent-primary: #c0392b;
-  --accent-secondary: #c0392b;
-  --accent-tertiary: #c0392b;
-  --accent-deep: #a12e22;
-  --accent-emerald: #4a7c4e;
-  --accent-coral: #8f2a20;
-  --accent-sky: #c0392b;
-  --accent-amber: #a67c1a;
+  --accent-secondary: #e57368;
+  --accent-tertiary: #e57368;
+  --accent-deep: #a93226;
+  --accent-emerald: #23a55a;
+  --accent-coral: #f23f43;
+  --accent-sky: #00a8fc;
+  --accent-amber: #f0b232;
 
   --accent-gradient: #c0392b;
   --accent-gradient-2: #c0392b;
@@ -59,31 +63,102 @@
   --accent-glow: transparent;
   --accent-glow-strong: transparent;
 
-  --success: #4a7c4e;
+  --success: #23a55a;
+  --success-hover: #1a8346;
   --success-glow: transparent;
-  --danger: #8f2a20;
-  --warning: #a67c1a;
+  --danger: #da373c;
+  --danger-hover: #a12828;
+  --warning: #f0b232;
 
-  --text-primary: #29261b;
-  --text-secondary: #3d3929;
-  --text-tertiary: #6b6858;
-  --text-muted: #8a8775;
+  --text-primary: #dbdee1;
+  --text-secondary: #b5bac1;
+  --text-tertiary: #949ba4;
+  --text-muted: #80848e;
+  --text-link: #00a8fc;
 
-  --border-subtle: #ebe9df;
-  --border-medium: #dedbcd;
-  --border-strong: #c9c5b3;
+  --border-subtle: #3f4147;
+  --border-medium: #4e5058;
+  --border-strong: #6d6f78;
   --border-accent: #c0392b;
 
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-xl: none;
+  --shadow-sm: 0 1px 0 rgba(4, 4, 5, 0.2), 0 1.5px 0 rgba(6, 6, 7, 0.05),
+    0 2px 0 rgba(4, 4, 5, 0.05);
+  --shadow-md: 0 4px 4px rgba(0, 0, 0, 0.16);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.24);
+  --shadow-xl: 0 0 0 1px rgba(30, 31, 34, 0.6), 0 2px 10px rgba(0, 0, 0, 0.2);
   --shadow-glow: none;
   --shadow-glow-accent: none;
 
-  --input-bg: #ffffff;
+  --input-bg: #1e1f22;
   --input-border: transparent;
   --input-focus: transparent;
+
+  --font-display: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  --font-code: "gg mono", Consolas, "Andale Mono WT", "Andale Mono",
+    "Lucida Console", Monaco, "Courier New", monospace;
+
+  /* Floating surfaces (toasts, tooltips) and overlays. */
+  --floating-bg: #111214;
+  --floating-fg: #dbdee1;
+  --floating-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --input-focus-bg: #18191c;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --scrollbar: #1a1b1e;
+}
+
+/* Light palette, picked when the browser or OS asks for light mode. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --w-face: #6d6f78;
+    --w-light: #ebedef;
+    --w-field: #e3e5e8;
+    --title-fg: #060607;
+
+    --hover-bg: #4e5058;
+    --press-bg: #41434a;
+
+    --bg-primary: #ffffff;
+    --bg-secondary: #f2f3f5;
+    --bg-tertiary: #e3e5e8;
+    --bg-elevated: #ebedef;
+    --bg-glass: #f2f3f5;
+    --bg-glass-hover: #ebedef;
+    --bg-card: #f2f3f5;
+    --bg-card-hover: #ebedef;
+    --bg-modifier-hover: rgba(116, 127, 141, 0.16);
+    --bg-modifier-active: rgba(116, 127, 141, 0.24);
+
+    --accent-secondary: #a93226;
+    --accent-tertiary: #a93226;
+    --accent-coral: #da373c;
+    --accent-sky: #006ce7;
+    --warning: #c27c0e;
+
+    --text-primary: #313338;
+    --text-secondary: #4e5058;
+    --text-tertiary: #5c5e66;
+    --text-muted: #80848e;
+    --text-link: #006ce7;
+
+    --border-subtle: #e1e2e4;
+    --border-medium: #c4c9ce;
+    --border-strong: #a5abb3;
+
+    --shadow-sm: 0 1px 0 rgba(6, 6, 7, 0.08), 0 1.5px 0 rgba(6, 6, 7, 0.03);
+    --shadow-md: 0 4px 4px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --shadow-xl: 0 0 0 1px rgba(6, 6, 7, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06);
+
+    --input-bg: #e3e5e8;
+
+    --floating-bg: #ffffff;
+    --floating-fg: #313338;
+    --floating-shadow: 0 0 0 1px rgba(6, 6, 7, 0.08), 0 8px 24px rgba(0, 0, 0, 0.16);
+    --input-focus-bg: #ffffff;
+    --overlay: rgba(0, 0, 0, 0.5);
+    --scrollbar: #c4c9ce;
+  }
 }
 
 html,
@@ -92,15 +167,9 @@ body {
 }
 
 body {
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.375;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
@@ -114,19 +183,23 @@ input {
   font-family: inherit;
 }
 
+a {
+  color: var(--text-link);
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text-link);
   outline-offset: 2px;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 ::selection {
-  background: #f3d3cf;
-  color: var(--text-primary);
+  background: rgba(192, 57, 43, 0.35);
+  color: inherit;
 }
 
 @media (prefers-reduced-motion: reduce) {
