@@ -3,7 +3,7 @@ import { useHistory } from "react-router-dom";
 import { Button, Card, CardBody } from "../../components";
 import styled from "styled-components";
 
-const LAST_UPDATED = "August 5, 2026";
+const LAST_UPDATED = "November 28, 2026";
 
 const PrivacyPolicy = () => {
   const history = useHistory();
@@ -34,10 +34,22 @@ const PrivacyPolicy = () => {
                 <h2>How ThrowMyFile works</h2>
                 <p>
                   ThrowMyFile moves a file from one browser to another without
-                  ever saving it. When you send a file, your browser slices it
-                  into chunks and streams them over a WebSocket to our
-                  Cloudflare Worker, which immediately forwards each chunk to
-                  the other devices connected to the same channel code.
+                  ever saving it. There are two ways a file can travel, chosen
+                  by the Auto / P2P / Relay switch:
+                </p>
+                <p>
+                  <strong>Direct (P2P)</strong>: the two browsers connect to
+                  each other over WebRTC and the file goes straight from one to
+                  the other, encrypted end to end (DTLS). It never reaches our
+                  servers; they only pass along the short messages the browsers
+                  need to find each other.
+                </p>
+                <p>
+                  <strong>Relay</strong>: your browser slices the file into
+                  chunks and streams them over a WebSocket to our Cloudflare
+                  Worker, which immediately forwards each chunk to the other
+                  devices connected to the same channel code. Auto mode uses
+                  this when a direct connection isn't possible.
                 </p>
                 <p>
                   Chunks are held in memory only for as long as it takes to
@@ -51,15 +63,15 @@ const PrivacyPolicy = () => {
                 <h2>What this is not</h2>
                 <p>
                   We want to be precise, because plenty of tools in this space
-                  are not. ThrowMyFile is a <strong>relay</strong>, not a
-                  direct peer-to-peer connection, and it is{" "}
-                  <strong>not end-to-end encrypted</strong>. There is no WebRTC
-                  and no client-side encryption: your file travels over TLS to
-                  our Worker, is decrypted there in order to be forwarded, and
-                  is re-encrypted over TLS on its way to the recipient.
+                  are not. Files sent over the <strong>relay</strong> are{" "}
+                  <strong>not end-to-end encrypted</strong>: your file travels
+                  over TLS to our Worker, is decrypted there in order to be
+                  forwarded, and is re-encrypted over TLS on its way to the
+                  recipient. Only direct (P2P) transfers are end-to-end
+                  encrypted, and the page shows which path each file took.
                 </p>
                 <p>
-                  In practice that means our infrastructure is technically
+                  For relayed files, that means our infrastructure is technically
                   capable of observing the bytes passing through it. We do not
                   log or inspect them, but you should not take that on trust for
                   material that genuinely requires secrecy. For anything
@@ -78,22 +90,31 @@ const PrivacyPolicy = () => {
                 <p>
                   In your browser: your transfer history lives in memory for the
                   lifetime of the tab and disappears when you close or reload
-                  it. Your light/dark theme preference is saved in{" "}
-                  <code>localStorage</code> so the site does not flash the wrong
-                  colours on your next visit. That is the only thing we persist,
-                  and it never leaves your device.
+                  it. Your light/dark theme and your Auto / P2P / Relay choice
+                  are saved in <code>localStorage</code> so they stick between
+                  visits. That is all we persist, and it never leaves your
+                  device.
                 </p>
               </Section>
 
               <Section>
                 <h2>Third parties</h2>
                 <p>
-                  The site is served by Cloudflare Pages and the relay runs on
-                  Cloudflare Workers, so Cloudflare processes your connection as
-                  our infrastructure provider. Beyond that there is nothing: no
-                  analytics, no tracking cookies, no advertising scripts, and no
-                  third-party fonts or CDNs. Every asset the page loads comes
-                  from our own domain.
+                  The site and the relay run on Cloudflare Workers, so
+                  Cloudflare processes your connection as our infrastructure
+                  provider. There are no analytics, no tracking cookies, no
+                  advertising scripts, and no third-party fonts or CDNs. Every
+                  asset the page loads comes from our own domain.
+                </p>
+                <p>
+                  Direct (P2P) connections are the one exception. To find a
+                  route, your browser asks public STUN servers run by
+                  Cloudflare and Google for your public IP address, and it
+                  shares its network addresses with the other devices on your
+                  channel so they can connect. That means those devices, and
+                  those STUN servers, can see your IP address. No file data
+                  goes to the STUN servers. Choose <strong>Relay</strong> if you
+                  don't want to share your IP address with other devices.
                 </p>
               </Section>
 

@@ -71,6 +71,7 @@ import {
   type ProbeStatus,
 } from "../../utils/p2p-probe";
 import {
+  P2P_CONNECT_TIMEOUT_MS,
   loadTransferMode,
   receiverWantsP2P,
   saveTransferMode,
@@ -1083,6 +1084,21 @@ export const Home = memo(() => {
     .flatMap((s) => (s.state === "failed" ? [s.detail] : []))
     .join("\n");
 
+  // Re-render once a second while a check runs, to count the seconds up.
+  const probeSince = probeSummary?.since;
+  const [, setProbeTick] = useState(0);
+  useEffect(() => {
+    if (probeSince === undefined) return;
+    const timer = setInterval(() => setProbeTick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [probeSince]);
+  const probeText =
+    probeSince === undefined
+      ? probeSummary?.text
+      : `${probeSummary?.text} ${Math.floor((Date.now() - probeSince) / 1000)} s (up to ${
+          P2P_CONNECT_TIMEOUT_MS / 1000
+        } s)`;
+
   // ── Socket wiring (registered once) ───────────────────────────────────────
 
   useEffect(() => {
@@ -1844,7 +1860,7 @@ export const Home = memo(() => {
                     title={probeDetail || undefined}
                   >
                     <Zap size={14} aria-hidden="true" />
-                    <span>{probeSummary.text}</span>
+                    <span>{probeText}</span>
                   </S.ProbeLine>
                 )}
                 </S.StatusRow>

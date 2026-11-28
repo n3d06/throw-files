@@ -9,15 +9,22 @@ and send.
 
 ## How it works
 
-- The sender's browser slices the file into chunks and streams them over a
-  **WebSocket** to a **Cloudflare Worker + Durable Object**, which forwards each
-  chunk to the other devices on the same channel code.
-- Chunks live in memory only long enough to be forwarded. Nothing is written to
-  disk, a database, or object storage.
-- This is a **relay**, not a direct peer-to-peer connection. There is no WebRTC.
-- It is **not end-to-end encrypted**. Traffic is TLS-encrypted in transit, but it
-  is decrypted at the Worker in order to be relayed. Encrypt sensitive files
-  yourself before sending them.
+A file takes one of two paths, picked by the **Auto / P2P / Relay** switch:
+
+- **Direct (P2P)**: the browsers connect over a **WebRTC DataChannel** and the
+  file goes straight between them, **end-to-end encrypted** (DTLS). The Worker
+  only forwards the signalling. When a device joins a channel, each pair of
+  devices connects right away and keeps that connection for its transfers.
+  STUN (Cloudflare, Google) is used to find a route; there is no TURN, so strict
+  NAT (most mobile data) can't connect directly.
+- **Relay**: the sender's browser streams chunks over a **WebSocket** to a
+  **Cloudflare Worker + Durable Object**, which forwards each chunk to the other
+  devices on the channel. This is **not end-to-end encrypted**: it is TLS in
+  transit but decrypted at the Worker to be forwarded.
+- **Auto** (the default) uses P2P when the join-time check succeeded and the
+  relay otherwise.
+- Nothing is written to disk, a database, or object storage on the server. Every
+  file is checked end to end with SHA-256 before it is saved.
 
 ## Features
 
@@ -26,7 +33,8 @@ and send.
 - **Text snippets**: send text, links or code (up to 50,000 characters) to the
   other devices; each arrives with a Copy button. Kept in the tab only.
 - **Explicit saves**: received files stay in the tab until you press Save.
-- **Live progress**: per-transfer progress, cancellation and connection state.
+- **Live progress**: per-transfer progress, speed, time left, cancellation,
+  connection state, and whether P2P works with the other devices.
 - **QR code**: show a QR for the channel link so another device can open it.
 - **Drag, drop or paste**, plus a copyable channel code and share link.
 - **Flat, minimal UI**: dashboard layout, no gradients, shadows or animations,

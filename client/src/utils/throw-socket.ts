@@ -45,6 +45,11 @@ export class ThrowSocket {
   private controlQueue: string[] = [];
   private reconnectAttempts = 0;
   private state: ConnectionState = "idle";
+  /**
+   * Identifies this tab to the Worker across reconnects, so a socket left
+   * behind by a network switch is replaced instead of counted as a device.
+   */
+  readonly clientId = crypto.randomUUID();
 
   get connectionState(): ConnectionState {
     return this.state;
@@ -115,7 +120,7 @@ export class ThrowSocket {
     this.setState(this.reconnectAttempts > 0 ? "reconnecting" : "connecting");
 
     const ws = new WebSocket(
-      `${wsBase()}/?channel=${encodeURIComponent(this.channel)}`,
+      `${wsBase()}/?channel=${encodeURIComponent(this.channel)}&client=${this.clientId}`,
     );
     ws.binaryType = "arraybuffer";
     this.ws = ws;
@@ -247,6 +252,11 @@ export class ThrowSocket {
         break;
       case "user-joined":
         this.fire("peer-joined");
+        break;
+      case "peer-left":
+        if (msg.channel === this.channel && typeof msg.client === "string") {
+          this.fire("peer-left", msg.client);
+        }
         break;
       case "connections":
         this.fire("connections", msg.count);

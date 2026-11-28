@@ -2,11 +2,17 @@
 
 ## What this project is
 
-A file-sharing SPA at [tf.n3d.site](https://tf.n3d.site). Files are
-chunked in the browser and **relayed** between clients through a Cloudflare
-Worker + Durable Object — nothing is stored, but this is not WebRTC and not
-end-to-end encrypted. Say "relay", not "P2P"; the traffic is decrypted at the
-Worker in order to be forwarded. The frontend is React 18 built with Rsbuild.
+A file-sharing SPA at [tf.n3d.site](https://tf.n3d.site). Nothing is stored.
+A file travels one of two ways (the Auto / P2P / Relay switch):
+
+- **P2P**: a WebRTC DataChannel between the browsers, end-to-end encrypted
+  (DTLS). The Worker only forwards signalling ("rtc" messages). STUN only, no
+  TURN, so strict NAT (most mobile data) falls back to the relay in Auto mode.
+- **Relay**: chunks over a WebSocket through a Cloudflare Worker + Durable
+  Object. Not end-to-end encrypted; decrypted at the Worker to be forwarded.
+
+Be precise about which path a claim applies to. The frontend is React 18 built
+with Rsbuild.
 
 ## Commands
 
@@ -44,9 +50,12 @@ any frame can arrive; there is no `channel-join` handshake message.
 **Message types:**
 | Type | Direction | Purpose |
 |------|-----------|---------|
-| `file-start` | client → DO | Announce a transfer |
-| `file-done` | client → DO | Transfer finished |
-| `file-abort` | client → DO | Sender cancelled or failed |
+| `file-offer` / `file-accept` / `file-decline` | client → DO → clients | Consent before any bytes; `file-accept` carries `p2p` and the receiver's P2P id `from` |
+| `file-start` | client → DO | Announce a relay transfer |
+| `file-done` | client → DO | Relay transfer finished; carries `sha256` |
+| `file-abort` | client → DO | Sender cancelled or failed (`reason: "p2p-failed"`) |
+| `rtc` | client → DO → clients | WebRTC signalling and P2P discovery (id `"probe"`); forwarded unread |
+| `text` | client → DO → clients | Text snippet |
 | Binary frame | client → DO → clients | File chunk relay |
 | `ping` | client → DO | Keepalive, auto-answered without waking the DO |
 
@@ -65,9 +74,20 @@ any frame can arrive; there is no `channel-join` handshake message.
 - **`utils/throw-socket.ts`** — WebSocket wrapper. One connection per channel;
   `setChannel()` reconnects. File chunks are **never queued** across a reconnect
   (the receiver's byte offset would no longer match). Exposes a `state` event.
-- **`utils/throw-file-upload.ts`** — Chunked sender. Uploads run **sequentially**.
-  The channel is passed to `submitFiles(files, channel)`; do not resurrect the
-  old pattern of mutating a descriptor from inside an event handler.
+- **`utils/throw-file-upload.ts`** — Sender. Uploads run **sequentially**.
+  Picks P2P or relay per file (`transfer-mode.ts`), reusing the open P2P
+  connection when there is one. The channel is passed to
+  `submitFiles(files, channel)`; do not resurrect the old pattern of mutating a
+  descriptor from inside an event handler.
+- **`utils/p2p.ts`** — One WebRTC connection: signalling over "rtc", one ICE
+  restart, DataChannel back-pressure (stay under Chrome's 16 MB send queue, or
+  the channel closes).
+- **`utils/p2p-probe.ts`** — Connects P2P to every device as it joins, keeps the
+  connection open, and opens a `file:<id>` DataChannel per transfer on it.
+- **`utils/receive-sink.ts`** — Receiver storage (disk via File System Access,
+  or memory), written in 4 MB batches.
+- **`utils/integrity.ts`** — SHA-256 over per-chunk hashes; both paths send it
+  with "done" and the receiver discards a file that doesn't match.
 - **`pages/home/index.tsx`** — Transfer UI logic. **`pages/home/styles.ts`** —
   its styled-components. Keep them separate.
 - **`App.tsx`** — React Router v5: `/`, `/privacy-policy`, and a catch-all 404.
@@ -76,9 +96,10 @@ any frame can arrive; there is no `channel-join` handshake message.
 
 ### Product claims
 
-The privacy policy, the README and the on-page badges must describe the relay
-architecture accurately. Do not add "P2P" or "end-to-end encrypted" copy unless
-the code actually implements it.
+The privacy policy, the README and the on-page badges must describe both paths
+accurately: P2P is end-to-end encrypted but shares IP addresses with the other
+devices and the STUN servers; the relay is not end-to-end encrypted. Relay mode
+must make no WebRTC connection at all.
 
 ### Received files
 

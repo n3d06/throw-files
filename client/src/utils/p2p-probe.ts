@@ -6,6 +6,7 @@
 //   {"hello": <id>, "fresh"?: true}  "I'm here" (fresh: re-check me unless
 //                                    you already hold a live connection)
 //   {"ready": <id>, "to": <id>}      "I'm listening for your offer"
+//   {"failed": <id>, "to": <id>}     "I couldn't connect to you; stop waiting"
 // For each pair, the device with the larger id listens and the smaller one
 // connects once it hears "ready", so the offer never arrives before anyone
 // is listening.
@@ -20,14 +21,23 @@ import type { ThrowSocket } from "./throw-socket";
 import { P2P_CONNECT_TIMEOUT_MS } from "./transfer-mode";
 
 export type ProbeStatus =
-  | { state: "checking" }
+  | { state: "checking"; since: number }
   | { state: "ok"; route: string | null }
   | { state: "failed"; detail: string };
 
-type ProbeMessage = { hello?: string; fresh?: boolean; ready?: string; to?: string };
+type ProbeMessage = {
+  hello?: string;
+  fresh?: boolean;
+  ready?: string;
+  failed?: string;
+  to?: string;
+};
 
 const PROBE_SIGNAL_ID = "probe";
-/** The listener gives up a little after the connecting side would have. */
+/**
+ * The listener's own limit, in case the connecting side's "failed" message
+ * never arrives; normally that message ends the wait first.
+ */
 const LISTEN_TIMEOUT_MS = P2P_CONNECT_TIMEOUT_MS + 5_000;
 /** A per-file DataChannel on a live connection opens in well under this. */
 const CHANNEL_OPEN_TIMEOUT_MS = 3_000;
@@ -37,10 +47,13 @@ const FILE_LABEL = "file:";
 export function summarizeProbes(statuses: ProbeStatus[]): {
   tone: "checking" | "ok" | "failed";
   text: string;
+  /** While checking: when the oldest running check started (ms epoch). */
+  since?: number;
 } | null {
   if (statuses.length === 0) return null;
-  if (statuses.some((s) => s.state === "checking")) {
-    return { tone: "checking", text: "Checking direct connection…" };
+  const running = statuses.flatMap((s) => (s.state === "checking" ? [s.since] : []));
+  if (running.length) {
+    return { tone: "checking", text: "Checking direct connection…", since: Math.min(...running) };
   }
   const failed = statuses.filter((s) => s.state === "failed").length;
   if (failed === statuses.length) {
@@ -70,10 +83,15 @@ interface Peer {
   pc?: RTCPeerConnection;
   /** Tears down this peer's connection or pending attempt. */
   close?: () => void;
+  /** Listener side: stop waiting and record the failure. */
+  giveUp?: () => void;
 }
 
 export class P2PProbe {
-  readonly selfId = crypto.randomUUID();
+  /** The socket's client id: the Worker names it when this tab leaves. */
+  get selfId(): string {
+    return this.socket.clientId;
+  }
   private peers = new Map<string, Peer>();
   private started = false;
   /** Receives per-file DataChannels other devices open to this one. */
@@ -94,6 +112,7 @@ export class P2PProbe {
     this.started = true;
     this.socket.on("rtc", this.onSignal);
     this.socket.on("joined", this.onJoined);
+    this.socket.on("peer-left", this.onPeerLeft);
     if (this.socket.connected) this.restart();
   }
 
@@ -102,6 +121,7 @@ export class P2PProbe {
     this.started = false;
     this.socket.off("rtc", this.onSignal);
     this.socket.off("joined", this.onJoined);
+    this.socket.off("peer-left", this.onPeerLeft);
     this.reset();
   }
 
@@ -174,6 +194,13 @@ export class P2PProbe {
     this.announce(true);
   };
 
+  /** That tab closed or left: its result (or pending check) no longer applies. */
+  private readonly onPeerLeft = (peerId: string) => {
+    if (!this.peers.has(peerId)) return;
+    this.forget(peerId);
+    this.notify();
+  };
+
   private isLive(peer: Peer): boolean {
     return peer.status.state === "ok" && peer.pc?.connectionState === "connected";
   }
@@ -194,6 +221,8 @@ export class P2PProbe {
       this.peers.get(msg.ready)?.status.state === "checking"
     ) {
       void this.connect(msg.ready);
+    } else if (typeof msg.failed === "string" && msg.to === this.selfId) {
+      this.peers.get(msg.failed)?.giveUp?.();
     }
   };
 
@@ -203,7 +232,7 @@ export class P2PProbe {
       if (!fresh || this.isLive(known)) return;
       this.forget(peerId);
     }
-    this.peers.set(peerId, { status: { state: "checking" } });
+    this.peers.set(peerId, { status: { state: "checking", since: Date.now() } });
     this.notify();
     // Make sure the newcomer knows about this device too.
     this.announce(false);
@@ -225,15 +254,27 @@ export class P2PProbe {
     return true;
   }
 
-  /** Watch a live connection; if it drops, forget it and check again. */
-  private watch(peer: Peer, peerId: string, pc: RTCPeerConnection): void {
-    pc.addEventListener("connectionstatechange", () => {
-      if (pc.connectionState !== "failed" && pc.connectionState !== "closed") return;
+  /**
+   * Watch a live connection; if it drops, forget it and check again. The
+   * check's channel closes as soon as the other side closes the connection
+   * (reload, Relay mode); ICE alone takes ~15 s to notice.
+   */
+  private watch(
+    peer: Peer,
+    peerId: string,
+    pc: RTCPeerConnection,
+    channel: RTCDataChannel,
+  ): void {
+    const lost = () => {
       if (this.peers.get(peerId) !== peer) return;
       console.info("[p2p] direct connection lost, checking again");
       this.forget(peerId);
       this.notify();
       if (this.enabled() && this.socket.connected) this.announce(true);
+    };
+    channel.addEventListener("close", lost);
+    pc.addEventListener("connectionstatechange", () => {
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") lost();
     });
   }
 
@@ -251,7 +292,7 @@ export class P2PProbe {
         clearTimeout(timer);
         if (this.peers.get(peerId) !== peer) return;
         peer.pc = handle.pc;
-        this.watch(peer, peerId, handle.pc);
+        this.watch(peer, peerId, handle.pc, channel);
         void route.then((r) => this.settle(peer, peerId, { state: "ok", route: r }));
       },
     );
@@ -259,10 +300,12 @@ export class P2PProbe {
       clearTimeout(timer);
       handle.close();
     };
-    timer = setTimeout(() => {
+    peer.giveUp = () => {
+      clearTimeout(timer);
       this.settle(peer, peerId, { state: "failed", detail: handle.describe() });
       handle.close();
-    }, LISTEN_TIMEOUT_MS);
+    };
+    timer = setTimeout(peer.giveUp, LISTEN_TIMEOUT_MS);
     this.send({ ready: this.selfId, to: peerId });
   }
 
@@ -286,7 +329,7 @@ export class P2PProbe {
       connection.pc.ondatachannel = ({ channel }) => {
         if (!this.routeChannel(channel)) channel.close();
       };
-      this.watch(peer, peerId, connection.pc);
+      this.watch(peer, peerId, connection.pc, connection.channel);
       this.settle(peer, peerId, { state: "ok", route: connection.route });
     } catch (error) {
       if (cancelled) return;
@@ -294,6 +337,8 @@ export class P2PProbe {
         state: "failed",
         detail: error instanceof Error ? error.message : "P2P connection failed",
       });
+      // The listener would otherwise wait out its own, longer timeout.
+      this.send({ failed: this.selfId, to: peerId });
     }
   }
 

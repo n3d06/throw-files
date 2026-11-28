@@ -13,11 +13,12 @@
 // On the DataChannel, binary messages are file chunks in order, and text
 // messages are control: {"t":"done"} or {"t":"abort"}.
 
+import { parseHash } from "./integrity";
 import type { ThrowSocket } from "./throw-socket";
 import { ICE_SERVERS } from "./transfer-mode";
 
 /** DataChannel message size every browser handles. */
-export const P2P_CHUNK_BYTES = 64 * 1024;
+const P2P_CHUNK_BYTES = 64 * 1024;
 /** Largest message worth sending; bigger ones gain little and Chrome caps here. */
 const P2P_MAX_CHUNK_BYTES = 256 * 1024;
 /**
@@ -327,9 +328,8 @@ export function parseControl(data: string): P2PControl | null {
     const message = JSON.parse(data) as { t?: unknown; sha256?: unknown };
     if (message?.t === "abort") return { t: "abort" };
     if (message?.t !== "done") return null;
-    return typeof message.sha256 === "string" && /^[0-9a-f]{64}$/.test(message.sha256)
-      ? { t: "done", sha256: message.sha256 }
-      : { t: "done" };
+    const sha256 = parseHash(message.sha256);
+    return sha256 ? { t: "done", sha256 } : { t: "done" };
   } catch {
     return null;
   }

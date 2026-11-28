@@ -1,6 +1,13 @@
 interface Attachment {
   channel: string;
+  /** The browser tab behind this socket; stays the same across reconnects. */
+  client: string;
+  /** This socket replaced an older one from the same tab (a reconnect). */
+  rejoined?: boolean;
 }
+
+/** Client ids are UUIDs from the tab; anything else gets a fresh id. */
+const CLIENT_ID = /^[A-Za-z0-9-]{8,64}$/;
 
 interface ChunkHeader {
   type: "file-chunk";
@@ -50,15 +57,32 @@ export class ThrowFilesChannel {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    if (this.ctx.getWebSockets().length >= MAX_CHANNEL_SOCKETS) {
+    const params = new URL(request.url).searchParams;
+    // index.ts has already validated this.
+    const channel = params.get("channel") as string;
+    const requested = params.get("client") ?? "";
+    const client = CLIENT_ID.test(requested) ? requested : crypto.randomUUID();
+
+    // A tab that reconnects (e.g. a phone switching from Wi-Fi to 4G) often
+    // leaves its old socket behind with no close frame, so it would linger
+    // for minutes and count as another device. Close it now.
+    const stale = this.ctx
+      .getWebSockets()
+      .filter((ws) => (ws.deserializeAttachment() as Attachment | null)?.client === client);
+    for (const ws of stale) {
+      try {
+        ws.close(4000, "replaced by a newer connection");
+      } catch {
+        /* already closed */
+      }
+    }
+
+    if (this.ctx.getWebSockets().length - stale.length >= MAX_CHANNEL_SOCKETS) {
       return new Response("Channel is full", { status: 429 });
     }
 
-    // index.ts has already validated this.
-    const channel = new URL(request.url).searchParams.get("channel") as string;
-
     const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair);
+    const [clientEnd, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
 
     // Membership is recorded here, from the upgrade URL, so it exists before any
@@ -69,16 +93,20 @@ export class ThrowFilesChannel {
     // The greeting itself waits for the client's "hello" rather than being sent
     // here — delivery of a send() issued before this 101 is returned is not
     // guaranteed.
-    server.serializeAttachment({ channel } satisfies Attachment);
+    server.serializeAttachment({
+      channel,
+      client,
+      rejoined: stale.length > 0,
+    } satisfies Attachment);
 
-    return new Response(null, { status: 101, webSocket: client });
+    return new Response(null, { status: 101, webSocket: clientEnd });
   }
 
   async webSocketMessage(
     ws: WebSocket,
     message: string | ArrayBuffer,
   ): Promise<void> {
-    const { channel } = (ws.deserializeAttachment() as Attachment) ?? {};
+    const { channel, rejoined } = (ws.deserializeAttachment() as Attachment) ?? {};
     if (!channel) return;
 
     if (message instanceof ArrayBuffer) {
@@ -121,7 +149,8 @@ export class ThrowFilesChannel {
           channel,
           message: "Connected.",
         });
-        this.broadcast({ type: "user-joined", channel }, ws);
+        // A reconnect is the same device coming back, not someone new.
+        if (!rejoined) this.broadcast({ type: "user-joined", channel }, ws);
         this.broadcastConnections();
         break;
       case "file-start":
@@ -246,10 +275,23 @@ export class ThrowFilesChannel {
     } catch {
       /* already closed */
     }
-    this.broadcastConnections(ws);
+    this.left(ws);
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
+    this.left(ws);
+  }
+
+  /**
+   * A socket closed. Unless the same tab already reconnected on a newer
+   * socket, tell everyone that tab is gone, so they drop its P2P state.
+   */
+  private left(ws: WebSocket): void {
+    const { channel, client } = (ws.deserializeAttachment() as Attachment | null) ?? {};
+    const stillHere = this.peers(ws).some(
+      (other) => (other.deserializeAttachment() as Attachment | null)?.client === client,
+    );
+    if (client && !stillHere) this.broadcast({ type: "peer-left", channel, client }, ws);
     this.broadcastConnections(ws);
   }
 
@@ -263,9 +305,11 @@ export class ThrowFilesChannel {
     }
   }
 
+  /** Open sockets; ones closed as stale may still be listed while closing. */
   private peers(exclude?: WebSocket): WebSocket[] {
-    const sockets = this.ctx.getWebSockets();
-    return exclude ? sockets.filter((ws) => ws !== exclude) : sockets;
+    return this.ctx
+      .getWebSockets()
+      .filter((ws) => ws !== exclude && ws.readyState === WebSocket.OPEN);
   }
 
   private broadcast(payload: object, exclude?: WebSocket): void {
@@ -298,7 +342,11 @@ export class ThrowFilesChannel {
    */
   private broadcastConnections(closing?: WebSocket): void {
     const remaining = this.peers(closing);
-    const msg = JSON.stringify({ type: "connections", count: remaining.length });
+    // Count devices, not sockets: one tab never counts twice.
+    const devices = new Set(
+      remaining.map((ws) => (ws.deserializeAttachment() as Attachment | null)?.client ?? ws),
+    );
+    const msg = JSON.stringify({ type: "connections", count: devices.size });
     for (const client of remaining) {
       try {
         client.send(msg);

@@ -8,8 +8,12 @@ describe("summarizeProbes", () => {
 
   test("reports checking while any check runs", () => {
     expect(
-      summarizeProbes([{ state: "ok", route: "direct (LAN)" }, { state: "checking" }])?.tone,
-    ).toBe("checking");
+      summarizeProbes([
+        { state: "ok", route: "direct (LAN)" },
+        { state: "checking", since: 2000 },
+        { state: "checking", since: 1000 },
+      ]),
+    ).toEqual({ tone: "checking", text: "Checking direct connection…", since: 1000 });
   });
 
   test("names the route when every check worked", () => {
