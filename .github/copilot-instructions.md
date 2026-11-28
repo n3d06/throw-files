@@ -75,21 +75,23 @@ any frame can arrive; there is no `channel-join` handshake message.
   `setChannel()` reconnects. File chunks are **never queued** across a reconnect
   (the receiver's byte offset would no longer match). Exposes a `state` event.
 - **`utils/throw-file-upload.ts`** — Sender. Uploads run **sequentially**.
-  Picks P2P or relay per file (`transfer-mode.ts`), reusing the open P2P
-  connection when there is one. The channel is passed to
+  Picks P2P or relay per file (`transfer-mode.ts`). P2P files only ever go
+  over the link `peer-links.ts` opened when the receiver joined; there is no
+  per-file connection. The channel is passed to
   `submitFiles(files, channel)`; do not resurrect the old pattern of mutating a
   descriptor from inside an event handler.
 - **`utils/p2p.ts`** — One WebRTC connection: signalling over "rtc", one ICE
   restart, DataChannel back-pressure (stay under Chrome's 16 MB send queue, or
   the channel closes).
-- **`utils/p2p-probe.ts`** — Connects P2P to every device as it joins, keeps the
+- **`utils/peer-links.ts`** — Connects P2P to every device as it joins, keeps the
   connection open, and opens a `file:<id>` DataChannel per transfer on it.
 - **`utils/receive-sink.ts`** — Receiver storage (disk via File System Access,
   or memory), written in 4 MB batches.
 - **`utils/integrity.ts`** — SHA-256 over per-chunk hashes; both paths send it
   with "done" and the receiver discards a file that doesn't match.
 - **`pages/home/index.tsx`** — Transfer UI logic. **`pages/home/styles.ts`** —
-  its styled-components. Keep them separate.
+  its styled-components. Keep them separate. `snackbar.tsx`, `qr-modal.tsx`
+  and `history-modal.tsx` beside them are the page's own dialogs.
 - **`App.tsx`** — React Router v5: `/`, `/privacy-policy`, and a catch-all 404.
 
 ## Key Conventions

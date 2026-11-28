@@ -6,41 +6,41 @@
 
 import type { ThrowSocket } from "./throw-socket";
 import { formatFileSize } from "./format";
-import type { ProbeStatus } from "./p2p-probe";
+import type { LinkStatus } from "./peer-links";
 import { ChunkHasher, canHash } from "./integrity";
 import { readChunks } from "./read-chunks";
-
-/** What the uploader needs from the connections made when devices joined. */
-export interface DirectLinks {
-  /** The P2P check result for the device with this id. */
-  status(peerId?: string): ProbeStatus | undefined;
-  /** A new DataChannel to that device on its live connection, or null. */
-  openChannel(
-    peerId: string | undefined,
-    transferId: string,
-  ): Promise<{ channel: RTCDataChannel; chunkSize: number } | null>;
-}
-
-/** An open DataChannel for one file, the message size to use, and teardown. */
-type P2PLink = Pick<P2PConnection, "channel" | "close"> & { chunkSize: number };
-import {
-  p2pChunkSize,
-  connectAsSender,
-  sendControl,
-  waitForDrain,
-  type P2PConnection,
-} from "./p2p";
-import {
-  P2P_CONNECT_TIMEOUT_MS,
-  resolveRoute,
-  supportsP2P,
-  type TransferMode,
-} from "./transfer-mode";
+import { sendControl, waitForDrain } from "./p2p";
+import { resolveRoute, supportsP2P, type TransferMode } from "./transfer-mode";
 import {
   MAX_FILE_BYTES,
   MAX_FILENAME_LENGTH,
   pickChunkSize,
 } from "./transfer";
+
+/** What the uploader needs from the connections made when devices joined. */
+export interface DirectLinks {
+  /** The P2P check result for the device with this id. */
+  status(peerId?: string): LinkStatus | undefined;
+  /**
+   * A new DataChannel to that device on its live connection, or null. Waits
+   * up to `maxWaitMs` (default: the whole check) if the check is still running.
+   */
+  openChannel(
+    peerId: string | undefined,
+    transferId: string,
+    maxWaitMs?: number,
+  ): Promise<{ channel: RTCDataChannel; chunkSize: number } | null>;
+}
+
+/**
+ * How long Auto waits for a check that is still running. A check that works
+ * almost always finishes within this; one that is still going is likely to
+ * fail, so the file goes over the relay instead of waiting it out.
+ */
+const AUTO_CHECK_WAIT_MS = 2_000;
+
+/** An open DataChannel for one file, the message size to use, and teardown. */
+type P2PLink = { channel: RTCDataChannel; chunkSize: number; close(): void };
 
 export const UploadError = {
   TooLarge: "too-large",
@@ -144,7 +144,7 @@ class ThrowFileUpload {
     if (p.declines >= Math.max(1, this.peerCount())) p.answer("decline");
   };
 
-  /** Live P2P connections made when devices joined (p2p-probe.ts). */
+  /** Live P2P connections made when devices joined (peer-links.ts). */
   private readonly direct: DirectLinks;
 
   constructor(
@@ -311,14 +311,8 @@ class ThrowFileUpload {
     }
 
     // Pick the path. P2P needs both sides to allow it; "auto" falls back to
-    // the relay if the direct connection does not open in time.
-    let route = resolveRoute(this.mode(), receiverP2P && supportsP2P());
-    // The check run when the receiver joined already found no direct path:
-    // Auto goes straight to the relay instead of waiting out a timeout.
-    if (route === "p2p-or-relay" && this.direct.status(from)?.state === "failed") {
-      console.info(`[p2p] skipped for ${info.name}: the earlier check found no direct path`);
-      route = "relay";
-    }
+    // the relay when there is no direct connection to the receiver.
+    const route = resolveRoute(this.mode(), receiverP2P && supportsP2P());
     if (route === "impossible") {
       this.fail(id, UploadError.P2PRefused, {
         message: `The other device only accepts relay transfers. Switch to Auto or Relay to send ${info.name}.`,
@@ -326,31 +320,28 @@ class ThrowFileUpload {
       return;
     }
     if (route === "p2p" || route === "p2p-or-relay") {
-      let connection: P2PLink | null = null;
-      let p2pError = "";
-      // The connection made when the receiver joined is already up: a new
-      // DataChannel on it opens in milliseconds, with no ICE to redo.
-      const reused = await this.direct.openChannel(from, id);
-      if (reused) {
-        console.info(`[p2p] ${info.name}: reusing the open direct connection`);
-        connection = { ...reused, close: () => reused.channel.close() };
-      } else {
-        try {
-          const fresh = await connectAsSender(this.socket, id, P2P_CONNECT_TIMEOUT_MS);
-          connection = { ...fresh, chunkSize: p2pChunkSize(fresh.pc) };
-        } catch (error) {
-          connection = null;
-          p2pError = error instanceof Error ? error.message : "";
-        }
-      }
+      // Files go over the connection made when the receiver joined: a new
+      // DataChannel on it opens in milliseconds, with no ICE to redo. If that
+      // check is still running, P2P mode waits for it; Auto only briefly.
+      const link = await this.direct.openChannel(
+        from,
+        id,
+        route === "p2p" ? undefined : AUTO_CHECK_WAIT_MS,
+      );
       if (this.aborted.has(id)) {
-        connection?.close();
+        link?.channel.close();
         return this.finishAborted(id, info);
       }
-      if (connection) return this.sendOverP2P(file, info, connection);
+      if (link) {
+        console.info(`[p2p] ${info.name}: sending over the open direct connection`);
+        return this.sendOverP2P(file, info, { ...link, close: () => link.channel.close() });
+      }
       if (route === "p2p") {
+        const status = this.direct.status(from);
+        const why =
+          status?.state === "failed" ? status.detail : "There is no direct connection to that device.";
         this.fail(id, UploadError.P2PFailed, {
-          message: `Couldn't connect directly to send ${info.name}. ${p2pError} Auto mode would fall back to the relay.`,
+          message: `Couldn't connect directly to send ${info.name}. ${why} Auto mode would fall back to the relay.`,
         });
         return;
       }

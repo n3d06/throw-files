@@ -22,7 +22,8 @@ starts it on `:8787`, which is what `.env.development` points at.
 src/
   components/   Shared UI primitives (Button, Input, Modal, Tooltip, Card, Text)
   pages/
-    home/       index.tsx (logic) + styles.ts (styled-components)
+    home/       index.tsx (logic) + styles.ts (styled-components),
+                snackbar.tsx, qr-modal.tsx, history-modal.tsx
     privacy-policy/
     not-found/
   utils/        (*.test.ts beside each tested file)
@@ -31,12 +32,11 @@ src/
     transfer-mode.ts      Auto / P2P / Relay rules, STUN servers
     format.ts             Byte/filename formatting
     theme.ts              Light/dark theme
-    backend.ts            Worker URL
     throw-socket.ts       WebSocket wrapper (signalling + relay)
     throw-file-upload.ts  Sender: picks the path, streams the file
     read-chunks.ts        Sender: reads the file ahead in blocks
     p2p.ts                One WebRTC connection: signalling, ICE restart
-    p2p-probe.ts          P2P to each device on join, kept open for files
+    peer-links.ts         P2P to each device on join, kept open for files
     receive-sink.ts       Receiver: where bytes go (disk or memory)
     integrity.ts          SHA-256 over chunk hashes
     rate.ts               Speed and time left

@@ -1,9 +1,7 @@
 import {
   memo,
   useEffect,
-  useLayoutEffect,
   useRef,
-  useMemo,
   useState,
   ChangeEvent,
   useCallback,
@@ -16,8 +14,6 @@ import {
   Share2,
   QrCode,
   Github,
-  ArrowUp,
-  ArrowDown,
   History,
   Zap,
   File as FileIcon,
@@ -26,12 +22,9 @@ import {
   Download,
   X,
   CheckCircle,
-  AlertCircle,
-  Info,
   Check,
   Send,
 } from "lucide-react";
-import qrcode from "qrcode-generator";
 import { Modal } from "../../components/modal";
 import { Tooltip } from "../../components/tooltip";
 import { socket, type ConnectionState } from "../../utils/throw-socket";
@@ -62,14 +55,14 @@ import {
   openReceiveSink,
   type ReceiveSink,
 } from "../../utils/receive-sink";
-import { listenAsReceiver, parseControl } from "../../utils/p2p";
+import { parseControl } from "../../utils/p2p";
 import { ChunkHasher, canHash } from "../../utils/integrity";
 import { RateMeter, formatTimeLeft } from "../../utils/rate";
 import {
-  P2PProbe,
-  summarizeProbes,
-  type ProbeStatus,
-} from "../../utils/p2p-probe";
+  PeerLinks,
+  summarizeLinks,
+  type LinkStatus,
+} from "../../utils/peer-links";
 import {
   P2P_CONNECT_TIMEOUT_MS,
   loadTransferMode,
@@ -80,6 +73,9 @@ import {
 } from "../../utils/transfer-mode";
 import type { TransferPath } from "../../utils/throw-file-upload";
 import * as S from "./styles";
+import { SnackbarHost, type ToastData, type ToastVariant } from "./snackbar";
+import { QrModal } from "./qr-modal";
+import { HistoryModal, formatTime, type HistoryEntry } from "./history-modal";
 
 const FRONTEND_URL: string =
   (window as { ENV?: { REACT_APP_FRONTEND_URL?: string } }).ENV
@@ -90,23 +86,7 @@ const FRONTEND_URL: string =
 
 /** A receive fails after this long with no new chunk (reset on every chunk). */
 const TRANSFER_TIMEOUT = 5 * 60 * 1000;
-const TOAST_DURATION = 5000;
 const OBJECT_URL_TTL = 60_000;
-
-const TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: true,
-});
-
-type ToastVariant = "success" | "error" | "info" | "warning";
-
-interface ToastData {
-  id: string;
-  title: string;
-  description: string;
-  type: ToastVariant;
-}
 
 type Direction = "send" | "receive";
 
@@ -132,16 +112,6 @@ interface IncomingOffer {
   type: string;
   size: number;
   compressed: boolean;
-}
-
-interface HistoryEntry {
-  id: string;
-  name: string;
-  size: number;
-  at: number;
-  channel: string;
-  compressed: boolean;
-  direction: Direction;
 }
 
 /**
@@ -184,8 +154,6 @@ interface ReceiveBuffer {
   sink: ReceiveSink;
   /** How bytes are arriving, once the first one does. */
   path?: TransferPath;
-  /** Waiting for (or holding) the sender's DataChannel, when P2P is allowed. */
-  p2p?: { close(): void; describe(): string };
   bytes: number;
   info: { name: string; type: string; size: number; compressed: boolean };
   timeoutId: ReturnType<typeof setTimeout>;
@@ -201,337 +169,21 @@ const CONNECTION_LABEL: Record<ConnectionState, string> = {
   failed: "Connection lost",
 };
 
-
-
 function vibrate(): void {
   if (window.navigator?.vibrate) window.navigator.vibrate(200);
 }
 
-function formatTime(at: number): string {
-  return TIME_FORMAT.format(new Date(at));
-}
-
-const SNACKBAR_ICONS: Record<ToastVariant, JSX.Element> = {
-  success: <CheckCircle size={20} />,
-  error: <AlertCircle size={20} />,
-  warning: <AlertCircle size={20} />,
-  info: <Info size={20} />,
-};
-
-/**
- * MD3 snackbar: one at a time on the inverse surface. A newer message replaces
- * the current one (see addToast). The countdown pauses while the pointer or
- * keyboard focus is on it, so it never vanishes mid-read.
- */
-const Snackbar = ({
-  toast,
-  onRemove,
-}: {
-  toast: ToastData;
-  onRemove: (id: string) => void;
-}) => {
-  const [visible, setVisible] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const remainingRef = useRef(TOAST_DURATION);
-
-  // Held in a ref so the timers below never restart because the parent passed
-  // a new callback; keying on it restarted the countdown on every render.
-  const onRemoveRef = useRef(onRemove);
-  onRemoveRef.current = onRemove;
-
-  const itemRef = useRef<HTMLDivElement>(null);
-
-  // Reading layout forces the off-screen starting style to apply before
-  // `visible` flips, so the entrance transitions even in background tabs.
-  useLayoutEffect(() => {
-    itemRef.current?.getBoundingClientRect();
-    setVisible(true);
-  }, []);
-
-  // A newer message reuses this snackbar instead of remounting it, so rapid
-  // messages swap text in place rather than flashing out and back in. Each
-  // one gets a fresh countdown, and one arriving mid-exit cancels the exit.
-  const shownId = useRef(toast.id);
-  if (shownId.current !== toast.id) {
-    shownId.current = toast.id;
-    remainingRef.current = TOAST_DURATION;
-  }
-  useEffect(() => {
-    setLeaving(false);
-  }, [toast.id]);
-
-  useEffect(() => {
-    if (paused || leaving) return;
-    const started = Date.now();
-    const dismiss = setTimeout(() => setLeaving(true), remainingRef.current);
-    return () => {
-      clearTimeout(dismiss);
-      remainingRef.current -= Date.now() - started;
-    };
-  }, [paused, leaving, toast.id]);
-
-  useEffect(() => {
-    if (!leaving) return;
-    const remove = setTimeout(() => onRemoveRef.current(toast.id), 200);
-    return () => clearTimeout(remove);
-  }, [leaving, toast.id]);
-
-  return (
-    <S.Snackbar
-      ref={itemRef}
-      $visible={visible}
-      $leaving={leaving}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
-    >
-      {/* Swapped in place with no animation: re-running a fade on every
-          message made rapid ones (e.g. repeated Copy) flicker. */}
-      <S.SnackbarContent>
-        <S.SnackbarIcon $type={toast.type} aria-hidden="true">
-          {SNACKBAR_ICONS[toast.type]}
-        </S.SnackbarIcon>
-        <S.SnackbarText>
-          <S.SnackbarTitle>{toast.title}</S.SnackbarTitle>
-          {toast.description && (
-            <S.SnackbarSupporting title={toast.description}>
-              {toast.description}
-            </S.SnackbarSupporting>
-          )}
-        </S.SnackbarText>
-      </S.SnackbarContent>
-      <S.SnackbarClose onClick={() => setLeaving(true)} aria-label="Dismiss">
-        <X size={20} />
-      </S.SnackbarClose>
-    </S.Snackbar>
-  );
-};
-
-/** Live region that hosts the single current snackbar. */
-const SnackbarHost = ({
-  toast,
-  onRemove,
-}: {
-  toast: ToastData | undefined;
-  onRemove: (id: string) => void;
-}) => (
-  <S.SnackbarHost role="status" aria-live="polite">
-    {toast && <Snackbar toast={toast} onRemove={onRemove} />}
-  </S.SnackbarHost>
-);
-
-const QR_QUIET = 3;
-/** How long the tick stays up before the QR dialog drops away. */
-const QR_SUCCESS_HOLD_MS = 1500;
-
-/** Renders `value` as an inline SVG QR code (dark modules on a white quiet zone). */
-const QrModal = ({
-  visible,
-  onClose,
-  value,
-  joinSignal,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  value: string;
-  /** Bumped each time another device joins the channel. */
-  joinSignal: number;
-}) => {
-  // A device joining while the code is on screen almost certainly means it was
-  // just scanned: morph the QR into a tick, then let the dialog drop away.
-  const [scanned, setScanned] = useState(false);
-  const seenSignal = useRef(joinSignal);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useEffect(() => {
-    if (!visible) {
-      seenSignal.current = joinSignal;
-      return;
-    }
-    if (joinSignal !== seenSignal.current) {
-      seenSignal.current = joinSignal;
-      setScanned(true);
-    }
-  }, [visible, joinSignal]);
-
-  useEffect(() => {
-    if (visible) setScanned(false);
-  }, [visible]);
-
-  useEffect(() => {
-    if (!scanned) return;
-    const t = setTimeout(() => onCloseRef.current(), QR_SUCCESS_HOLD_MS);
-    return () => clearTimeout(t);
-  }, [scanned]);
-
-  const { n, path } = useMemo(() => {
-    const qr = qrcode(0, "M");
-    qr.addData(value);
-    qr.make();
-    const n = qr.getModuleCount();
-    let path = "";
-    for (let r = 0; r < n; r++)
-      for (let c = 0; c < n; c++)
-        if (qr.isDark(r, c)) path += `M${c + QR_QUIET} ${r + QR_QUIET}h1v1h-1z`;
-    return { n, path };
-  }, [value]);
-  const quiet = QR_QUIET;
-  return (
-    <Modal
-      visible={visible}
-      onClose={onClose}
-      title={scanned ? "Device connected" : "Scan to open"}
-      width={340}
-    >
-      <S.QrStage $scanned={scanned}>
-        <svg
-          className="qr"
-          viewBox={`0 0 ${n + quiet * 2} ${n + quiet * 2}`}
-          role="img"
-          aria-label={`QR code for ${value}`}
-          shapeRendering="crispEdges"
-        >
-          <path d={path} fill="#000" />
-        </svg>
-        {scanned && (
-          <S.QrTick role="img" aria-label="Device connected">
-            <svg viewBox="0 0 52 52">
-              <circle className="disc" cx="26" cy="26" r="25" />
-              <path className="mark" d="M14.5 27.5l7.5 7.5 16-16" />
-            </svg>
-          </S.QrTick>
-        )}
-      </S.QrStage>
-      <S.QrCaption $scanned={scanned}>{value}</S.QrCaption>
-    </Modal>
-  );
-};
-
-const HistoryModal = ({
-  visible,
-  onClose,
-  history,
-  onClearHistory,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  history: HistoryEntry[];
-  onClearHistory: () => void;
-}) => {
-  const [activeTab, setActiveTab] = useState<"all" | "send" | "receive">("all");
-
-  const sentCount = history.filter((h) => h.direction === "send").length;
-  const receivedCount = history.length - sentCount;
-  const files =
-    activeTab === "all"
-      ? history
-      : history.filter((h) => h.direction === activeTab);
-
-  return (
-    <Modal
-      title={
-        <S.ModalTitle>
-          <S.HistoryWrapper>
-            <History size={16} />
-          </S.HistoryWrapper>
-          Transfer history
-          <S.CountBadge>{history.length}</S.CountBadge>
-        </S.ModalTitle>
-      }
-      visible={visible}
-      onClose={onClose}
-      width={600}
-      footer={
-        <S.ModalFooter>
-          {history.length > 0 && (
-            <Button variant="danger" onClick={onClearHistory}>
-              Clear all
-            </Button>
-          )}
-          <Button variant="primary" onClick={onClose}>
-            Done
-          </Button>
-        </S.ModalFooter>
-      }
-    >
-      <S.TabBar>
-        {(
-          [
-            { key: "all", label: "All", count: history.length },
-            { key: "send", label: "Sent", count: sentCount },
-            { key: "receive", label: "Received", count: receivedCount },
-          ] as const
-        ).map((tab) => (
-          <S.TabButton
-            key={tab.key}
-            $active={activeTab === tab.key}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-            <S.TabCount $active={activeTab === tab.key}>{tab.count}</S.TabCount>
-          </S.TabButton>
-        ))}
-      </S.TabBar>
-
-      {files.length === 0 ? (
-        <S.EmptyState>
-          <S.EmptyIconWrapper>
-            <FileIcon size={32} />
-          </S.EmptyIconWrapper>
-          <S.EmptyTitle>No transfers yet</S.EmptyTitle>
-          <S.EmptySubtitle>Your file transfers will appear here</S.EmptySubtitle>
-        </S.EmptyState>
-      ) : (
-        <S.HistoryList>
-          {files.map((file) => {
-            const type = file.direction === "send" ? "sent" : "received";
-            return (
-              <S.HistoryItem key={file.id}>
-                <S.HistoryItemLeft>
-                  <S.StatusBadge $type={type}>
-                    {file.direction === "send" ? (
-                      <ArrowUp size={11} />
-                    ) : (
-                      <ArrowDown size={11} />
-                    )}
-                  </S.StatusBadge>
-                  <S.FileNameWrapper>
-                    <S.FileNameText title={file.name}>
-                      {trimFileName(file.name, 36)}
-                    </S.FileNameText>
-                    {file.compressed && <S.ZipBadge>ZIP</S.ZipBadge>}
-                  </S.FileNameWrapper>
-                </S.HistoryItemLeft>
-                <S.HistoryItemRight>
-                  <S.MetaText>{formatTime(file.at)}</S.MetaText>
-                  <S.TypeBadge $type={type}>
-                    {file.direction === "send" ? "SENT" : "RECV"}
-                  </S.TypeBadge>
-                </S.HistoryItemRight>
-                <S.FileSizeText>{formatFileSize(file.size)}</S.FileSizeText>
-              </S.HistoryItem>
-            );
-          })}
-        </S.HistoryList>
-      )}
-    </Modal>
-  );
-};
-
 export const Home = memo(() => {
   /** Checks P2P with each device as soon as it joins the channel. */
-  const probeRef = useRef<P2PProbe | null>(null);
-  const [probeStatuses, setProbeStatuses] = useState<Map<string, ProbeStatus>>(
+  const probeRef = useRef<PeerLinks | null>(null);
+  const [probeStatuses, setLinkStatuses] = useState<Map<string, LinkStatus>>(
     () => new Map(),
   );
   if (!probeRef.current)
-    probeRef.current = new P2PProbe(
+    probeRef.current = new PeerLinks(
       socket,
       () => receiverWantsP2P(transferModeRef.current) && supportsP2P(),
-      setProbeStatuses,
+      setLinkStatuses,
     );
   const probe = probeRef.current;
 
@@ -544,8 +196,8 @@ export const Home = memo(() => {
       () => transferModeRef.current,
       {
         status: (peerId) => probeRef.current?.status(peerId),
-        openChannel: (peerId, id) =>
-          probeRef.current?.openChannel(peerId, id) ?? Promise.resolve(null),
+        openChannel: (peerId, id, maxWaitMs) =>
+          probeRef.current?.openChannel(peerId, id, maxWaitMs) ?? Promise.resolve(null),
       },
     );
   const uploader = uploaderRef.current;
@@ -742,7 +394,6 @@ export const Home = memo(() => {
       if (buffer) {
         clearTimeout(buffer.timeoutId);
         buffer.sink.abort();
-        buffer.p2p?.close();
       }
       delete buffersRef.current[id];
       dropTransfer(id);
@@ -1040,21 +691,12 @@ export const Home = memo(() => {
       setOffers((prev) => prev.filter((o) => o.id !== offer.id));
 
       // Offer P2P unless this device is set to relay only. If the sender
-      // opens a DataChannel, the file arrives over it; if it falls back to
-      // the relay instead, this listener just closes with the transfer.
+      // opens a DataChannel on the open link, peer-links hands it over
+      // (onIncomingChannel); otherwise the file comes over the relay.
       const p2p = receiverWantsP2P(transferModeRef.current) && supportsP2P();
-      if (p2p) {
-        const id = offer.id;
-        // Fallback for when the sender has no open connection to this device
-        // (it reuses the one from the join-time check whenever it can).
-        buffersRef.current[id].p2p = listenAsReceiver(socket, id, (channel, route) => {
-          void route.then((r) => r && console.info(`[p2p] receiving ${offer.name}: ${r}`));
-          attachReceiveChannel(id, channel);
-        });
-      }
       socket.emit("file-accept", { id: offer.id, p2p, from: probe.selfId });
     },
-    [addToast, armTimeout, upsertTransfer, probe, attachReceiveChannel],
+    [addToast, armTimeout, upsertTransfer, probe],
   );
 
   const declineOffer = useCallback((offer: IncomingOffer) => {
@@ -1079,7 +721,7 @@ export const Home = memo(() => {
   const probeSummary =
     transferMode === "relay" || connectedUsers < 2
       ? null
-      : summarizeProbes([...probeStatuses.values()]);
+      : summarizeLinks([...probeStatuses.values()]);
   const probeDetail = [...probeStatuses.values()]
     .flatMap((s) => (s.state === "failed" ? [s.detail] : []))
     .join("\n");
@@ -1157,11 +799,6 @@ export const Home = memo(() => {
       if (!buffer.path) {
         buffer.path = path;
         setTransferPath(data.id, path);
-        // The sender chose the relay: stop waiting for a DataChannel.
-        if (path === "relay") {
-          buffer.p2p?.close();
-          buffer.p2p = undefined;
-        }
       } else if (buffer.path !== path) {
         return;
       }
@@ -1192,7 +829,6 @@ export const Home = memo(() => {
       clearTimeout(buffer.timeoutId);
       delete buffersRef.current[data.id];
       dropTransfer(data.id);
-      buffer.p2p?.close();
 
       // Never keep a file that is missing bytes: a dropped frame would
       // otherwise produce a truncated file reported as a success.
@@ -1293,13 +929,10 @@ export const Home = memo(() => {
       if (!buffer) return;
       const { name } = buffer.info;
       if (data.reason === "p2p-failed") {
-        // This side's view of the attempt complements the sender's.
-        const detail = buffer.p2p?.describe() ?? "";
-        console.info(`[p2p] receive of ${name} failed. ${detail}`);
         discardBuffer(data.id);
         addToast(
           "Couldn't connect directly (P2P)",
-          `${name} was not sent. ${detail}`,
+          `${name} was not sent: the sender is set to P2P only. The status line above shows why P2P is unavailable.`,
           "warning",
         );
         return;

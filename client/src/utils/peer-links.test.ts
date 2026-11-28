@@ -1,14 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { summarizeProbes, transferIdOf } from "./p2p-probe";
+import { summarizeLinks, transferIdOf } from "./peer-links";
 
-describe("summarizeProbes", () => {
+describe("summarizeLinks", () => {
   test("says nothing without peers", () => {
-    expect(summarizeProbes([])).toBeNull();
+    expect(summarizeLinks([])).toBeNull();
   });
 
   test("reports checking while any check runs", () => {
     expect(
-      summarizeProbes([
+      summarizeLinks([
         { state: "ok", route: "direct (LAN)" },
         { state: "checking", since: 2000 },
         { state: "checking", since: 1000 },
@@ -17,19 +17,19 @@ describe("summarizeProbes", () => {
   });
 
   test("names the route when every check worked", () => {
-    expect(summarizeProbes([{ state: "ok", route: "direct (LAN)" }])).toEqual({
+    expect(summarizeLinks([{ state: "ok", route: "direct (LAN)" }])).toEqual({
       tone: "ok",
       text: "P2P ready · direct (LAN)",
     });
   });
 
   test("says Auto will use the relay when every check failed", () => {
-    expect(summarizeProbes([{ state: "failed", detail: "x" }])?.tone).toBe("failed");
+    expect(summarizeLinks([{ state: "failed", detail: "x" }])?.tone).toBe("failed");
   });
 
   test("counts partial success", () => {
     expect(
-      summarizeProbes([
+      summarizeLinks([
         { state: "ok", route: null },
         { state: "failed", detail: "x" },
       ])?.text,

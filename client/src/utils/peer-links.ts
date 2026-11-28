@@ -20,7 +20,7 @@ import { connectAsSender, listenAsReceiver, p2pChunkSize } from "./p2p";
 import type { ThrowSocket } from "./throw-socket";
 import { P2P_CONNECT_TIMEOUT_MS } from "./transfer-mode";
 
-export type ProbeStatus =
+export type LinkStatus =
   | { state: "checking"; since: number }
   | { state: "ok"; route: string | null }
   | { state: "failed"; detail: string };
@@ -39,12 +39,14 @@ const PROBE_SIGNAL_ID = "probe";
  * never arrives; normally that message ends the wait first.
  */
 const LISTEN_TIMEOUT_MS = P2P_CONNECT_TIMEOUT_MS + 5_000;
+/** A live connection "disconnected" this long is treated as gone. */
+const DISCONNECT_GRACE_MS = 3_000;
 /** A per-file DataChannel on a live connection opens in well under this. */
 const CHANNEL_OPEN_TIMEOUT_MS = 3_000;
 const FILE_LABEL = "file:";
 
 /** One line for the UI from every peer's status, or null when nothing to say. */
-export function summarizeProbes(statuses: ProbeStatus[]): {
+export function summarizeLinks(statuses: LinkStatus[]): {
   tone: "checking" | "ok" | "failed";
   text: string;
   /** While checking: when the oldest running check started (ms epoch). */
@@ -78,7 +80,7 @@ export function transferIdOf(label: string): string | null {
 }
 
 interface Peer {
-  status: ProbeStatus;
+  status: LinkStatus;
   /** The live connection, once the check succeeded. */
   pc?: RTCPeerConnection;
   /** Tears down this peer's connection or pending attempt. */
@@ -87,7 +89,7 @@ interface Peer {
   giveUp?: () => void;
 }
 
-export class P2PProbe {
+export class PeerLinks {
   /** The socket's client id: the Worker names it when this tab leaves. */
   get selfId(): string {
     return this.socket.clientId;
@@ -104,7 +106,7 @@ export class P2PProbe {
     private readonly socket: ThrowSocket,
     /** False in Relay mode or without WebRTC: no probing, no answering. */
     private readonly enabled: () => boolean,
-    private readonly onChange: (statuses: Map<string, ProbeStatus>) => void,
+    private readonly onChange: (statuses: Map<string, LinkStatus>) => void,
   ) {}
 
   start(): void {
@@ -140,19 +142,26 @@ export class P2PProbe {
   }
 
   /** The last check of the device with this id, if any. */
-  status(peerId: string | undefined): ProbeStatus | undefined {
+  status(peerId: string | undefined): LinkStatus | undefined {
     return peerId ? this.peers.get(peerId)?.status : undefined;
   }
 
   /**
-   * Open a DataChannel for one transfer on the live connection to `peerId`.
+   * Open a DataChannel for one transfer on the live connection to `peerId`,
+   * first waiting up to `maxWaitMs` for its check if that is still running.
    * Null when there is no live connection or the channel doesn't open.
    */
   async openChannel(
     peerId: string | undefined,
     transferId: string,
+    maxWaitMs: number = LISTEN_TIMEOUT_MS,
   ): Promise<{ channel: RTCDataChannel; chunkSize: number } | null> {
-    const pc = peerId ? this.peers.get(peerId)?.pc : undefined;
+    if (!peerId) return null;
+    const deadline = Date.now() + maxWaitMs;
+    while (this.peers.get(peerId)?.status.state === "checking" && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const pc = this.peers.get(peerId)?.pc;
     if (!pc || pc.connectionState !== "connected") return null;
     let channel: RTCDataChannel;
     try {
@@ -257,7 +266,9 @@ export class P2PProbe {
   /**
    * Watch a live connection; if it drops, forget it and check again. The
    * check's channel closes as soon as the other side closes the connection
-   * (reload, Relay mode); ICE alone takes ~15 s to notice.
+   * (reload, Relay mode). A network change (Wi-Fi to 4G) closes nothing: the
+   * connection only goes "disconnected", and ICE waits 15-30 s before calling
+   * it "failed", so a disconnect that lasts DISCONNECT_GRACE_MS counts as lost.
    */
   private watch(
     peer: Peer,
@@ -265,7 +276,9 @@ export class P2PProbe {
     pc: RTCPeerConnection,
     channel: RTCDataChannel,
   ): void {
+    let grace: ReturnType<typeof setTimeout> | undefined;
     const lost = () => {
+      clearTimeout(grace);
       if (this.peers.get(peerId) !== peer) return;
       console.info("[p2p] direct connection lost, checking again");
       this.forget(peerId);
@@ -274,7 +287,13 @@ export class P2PProbe {
     };
     channel.addEventListener("close", lost);
     pc.addEventListener("connectionstatechange", () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") lost();
+      const state = pc.connectionState;
+      if (state === "failed" || state === "closed") lost();
+      else if (state === "disconnected") grace ??= setTimeout(lost, DISCONNECT_GRACE_MS);
+      else if (state === "connected") {
+        clearTimeout(grace); // a brief blip that recovered
+        grace = undefined;
+      }
     });
   }
 
@@ -342,7 +361,7 @@ export class P2PProbe {
     }
   }
 
-  private settle(peer: Peer, peerId: string, status: ProbeStatus): void {
+  private settle(peer: Peer, peerId: string, status: LinkStatus): void {
     if (this.peers.get(peerId) !== peer || peer.status.state !== "checking") return;
     peer.status = status;
     console.info(

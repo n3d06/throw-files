@@ -7,7 +7,6 @@
 // Binary frames carry file chunks with a length-prefixed JSON header:
 //   [uint32 big-endian: header byte length][header JSON][chunk bytes]
 
-import { wsBase } from "./backend";
 import { parseHash } from "./integrity";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +29,26 @@ export type ConnectionState =
   | "reconnecting"
   | "failed";
 
+
+let cachedWsBase: string | null = null;
+
+/**
+ * The Worker's WebSocket origin, e.g. "wss://tf.n3d.site". Worked out on
+ * first connect rather than at import, so importing this module needs no
+ * `window`.
+ */
+function wsBase(): string {
+  if (cachedWsBase) return cachedWsBase;
+  const configured =
+    (window as { ENV?: { REACT_APP_BACKEND_URL?: string } }).ENV
+      ?.REACT_APP_BACKEND_URL ||
+    process.env.REACT_APP_BACKEND_URL ||
+    (window.location.hostname === "localhost"
+      ? "http://localhost:8787"
+      : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`);
+  cachedWsBase = configured.replace(/^http/, "ws").replace(/\/$/, "");
+  return cachedWsBase;
+}
 
 const PING_INTERVAL_MS = 25_000;
 const MAX_RECONNECT_ATTEMPTS = 10;

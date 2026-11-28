@@ -1,9 +1,10 @@
-// One WebRTC DataChannel per P2P transfer.
+// One WebRTC connection between two devices (peer-links.ts makes one per pair
+// and opens a DataChannel per file on it).
 //
 // Signalling (the SDP offer/answer and ICE candidates) rides the existing
-// channel WebSocket as "rtc" messages tagged with the transfer id; the Worker
-// only forwards them. Once the DataChannel opens, file bytes go browser to
-// browser, encrypted end to end by DTLS, and never touch the Worker.
+// channel WebSocket as "rtc" messages tagged with a link id; the Worker only
+// forwards them. File bytes then go browser to browser, encrypted end to end
+// by DTLS, and never touch the Worker.
 //
 // Connecting borrows from croc (github.com/schollz/croc): try the direct
 // routes first (LAN, then public address via STUN), fall back to the relay
