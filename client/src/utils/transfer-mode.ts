@@ -18,10 +18,10 @@ export const TRANSFER_MODE_STORAGE_KEY = "throwmyfile-transfer-mode";
 export const P2P_CONNECT_TIMEOUT_MS = 12_000;
 
 /**
- * Used when the Worker's /ice endpoint can't be reached: free public STUN,
- * which tells each browser its public address. No data passes it.
+ * Free public STUN: tells each browser its public address. No data passes it.
+ * Two providers, so one being blocked on a network doesn't stop P2P.
  */
-export const FALLBACK_ICE_SERVERS: RTCIceServer[] = [
+export const ICE_SERVERS: RTCIceServer[] = [
   { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
 ];
 

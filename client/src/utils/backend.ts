@@ -16,8 +16,3 @@ export function wsBase(): string {
   cached = configured.replace(/^http/, "ws").replace(/\/$/, "");
   return cached;
 }
-
-/** The Worker's HTTP origin, for plain requests such as /ice. */
-export function httpBase(): string {
-  return wsBase().replace(/^ws/, "http");
-}

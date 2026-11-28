@@ -6,8 +6,25 @@
 
 import type { ThrowSocket } from "./throw-socket";
 import { formatFileSize } from "./format";
+import type { ProbeStatus } from "./p2p-probe";
+import { ChunkHasher, canHash } from "./integrity";
+import { readChunks } from "./read-chunks";
+
+/** What the uploader needs from the connections made when devices joined. */
+export interface DirectLinks {
+  /** The P2P check result for the device with this id. */
+  status(peerId?: string): ProbeStatus | undefined;
+  /** A new DataChannel to that device on its live connection, or null. */
+  openChannel(
+    peerId: string | undefined,
+    transferId: string,
+  ): Promise<{ channel: RTCDataChannel; chunkSize: number } | null>;
+}
+
+/** An open DataChannel for one file, the message size to use, and teardown. */
+type P2PLink = Pick<P2PConnection, "channel" | "close"> & { chunkSize: number };
 import {
-  P2P_CHUNK_BYTES,
+  p2pChunkSize,
   connectAsSender,
   sendControl,
   waitForDrain,
@@ -92,7 +109,7 @@ class ThrowFileUpload {
   /** Offers still waiting for an answer, keyed by transfer id. */
   private pending: Map<
     string,
-    { answer: (a: Answer, p2p?: boolean) => void; declines: number }
+    { answer: (a: Answer, p2p?: boolean, from?: string) => void; declines: number }
   > = new Map();
   /** Transfers whose bytes go over P2P; a WebSocket drop does not stop them. */
   private p2p: Set<string> = new Set();
@@ -109,8 +126,16 @@ class ThrowFileUpload {
     });
   };
 
-  private readonly onAccept = ({ id, p2p }: { id: string; p2p?: boolean }) =>
-    this.pending.get(id)?.answer("accept", p2p === true);
+  private readonly onAccept = ({
+    id,
+    p2p,
+    from,
+  }: {
+    id: string;
+    p2p?: boolean;
+    from?: string;
+  }) =>
+    this.pending.get(id)?.answer("accept", p2p === true, from);
 
   private readonly onDecline = ({ id }: { id: string }) => {
     const p = this.pending.get(id);
@@ -119,12 +144,17 @@ class ThrowFileUpload {
     if (p.declines >= Math.max(1, this.peerCount())) p.answer("decline");
   };
 
+  /** Live P2P connections made when devices joined (p2p-probe.ts). */
+  private readonly direct: DirectLinks;
+
   constructor(
     socket: ThrowSocket,
     peerCount: () => number = () => 1,
     mode: () => TransferMode = () => "relay",
+    direct: DirectLinks = { status: () => undefined, openChannel: async () => null },
   ) {
     this.socket = socket;
+    this.direct = direct;
     this.peerCount = peerCount;
     this.mode = mode;
     // A dropped connection invalidates every in-flight byte offset.
@@ -177,14 +207,16 @@ class ThrowFileUpload {
    * Resolves with the first decisive answer to the offer `id`, and whether
    * the accepting device is willing to receive it over P2P.
    */
-  private awaitAnswer(id: string): Promise<{ answer: Answer; p2p: boolean }> {
+  private awaitAnswer(
+    id: string,
+  ): Promise<{ answer: Answer; p2p: boolean; from?: string }> {
     return new Promise((resolve) => {
       const timer = setTimeout(() => finish("timeout"), OFFER_TIMEOUT_MS);
-      const finish = (answer: Answer, p2p = false) => {
+      const finish = (answer: Answer, p2p = false, from?: string) => {
         if (!this.pending.has(id)) return;
         clearTimeout(timer);
         this.pending.delete(id);
-        resolve({ answer, p2p });
+        resolve({ answer, p2p, from });
       };
       this.pending.set(id, { answer: finish, declines: 0 });
     });
@@ -257,7 +289,7 @@ class ThrowFileUpload {
       size: info.size,
       compressed: info.compressed,
     });
-    const { answer, p2p: receiverP2P } = await this.awaitAnswer(id);
+    const { answer, p2p: receiverP2P, from } = await this.awaitAnswer(id);
     if (answer !== "accept") {
       this.cleanup(id);
       // Closes the prompt on every other device still showing this offer.
@@ -280,7 +312,13 @@ class ThrowFileUpload {
 
     // Pick the path. P2P needs both sides to allow it; "auto" falls back to
     // the relay if the direct connection does not open in time.
-    const route = resolveRoute(this.mode(), receiverP2P && supportsP2P());
+    let route = resolveRoute(this.mode(), receiverP2P && supportsP2P());
+    // The check run when the receiver joined already found no direct path:
+    // Auto goes straight to the relay instead of waiting out a timeout.
+    if (route === "p2p-or-relay" && this.direct.status(from)?.state === "failed") {
+      console.info(`[p2p] skipped for ${info.name}: the earlier check found no direct path`);
+      route = "relay";
+    }
     if (route === "impossible") {
       this.fail(id, UploadError.P2PRefused, {
         message: `The other device only accepts relay transfers. Switch to Auto or Relay to send ${info.name}.`,
@@ -288,13 +326,22 @@ class ThrowFileUpload {
       return;
     }
     if (route === "p2p" || route === "p2p-or-relay") {
-      let connection: P2PConnection | null = null;
+      let connection: P2PLink | null = null;
       let p2pError = "";
-      try {
-        connection = await connectAsSender(this.socket, id, P2P_CONNECT_TIMEOUT_MS);
-      } catch (error) {
-        connection = null;
-        p2pError = error instanceof Error ? error.message : "";
+      // The connection made when the receiver joined is already up: a new
+      // DataChannel on it opens in milliseconds, with no ICE to redo.
+      const reused = await this.direct.openChannel(from, id);
+      if (reused) {
+        console.info(`[p2p] ${info.name}: reusing the open direct connection`);
+        connection = { ...reused, close: () => reused.channel.close() };
+      } else {
+        try {
+          const fresh = await connectAsSender(this.socket, id, P2P_CONNECT_TIMEOUT_MS);
+          connection = { ...fresh, chunkSize: p2pChunkSize(fresh.pc) };
+        } catch (error) {
+          connection = null;
+          p2pError = error instanceof Error ? error.message : "";
+        }
       }
       if (this.aborted.has(id)) {
         connection?.close();
@@ -331,15 +378,19 @@ class ThrowFileUpload {
       }),
     );
     const chunkSize = pickChunkSize(file.size);
+    const hasher = canHash() ? new ChunkHasher() : null;
+    const chunks = readChunks(file, chunkSize);
 
     try {
       let offset = 0;
       while (offset < file.size) {
         if (this.aborted.has(id)) return this.finishAborted(id, info);
 
-        let chunk: ArrayBuffer;
+        let chunk: Uint8Array<ArrayBuffer>;
         try {
-          chunk = await file.slice(offset, offset + chunkSize).arrayBuffer();
+          const next = await chunks.next();
+          if (next.done) break;
+          chunk = next.value;
         } catch {
           this.fail(id, UploadError.ReadFailed, {
             message: `Could not read ${info.name} from disk.`,
@@ -365,10 +416,9 @@ class ThrowFileUpload {
         const frame = new ArrayBuffer(4 + headerBytes.byteLength + chunk.byteLength);
         new DataView(frame).setUint32(0, headerBytes.byteLength, false);
         new Uint8Array(frame, 4, headerBytes.byteLength).set(headerBytes);
-        new Uint8Array(frame, 4 + headerBytes.byteLength).set(
-          new Uint8Array(chunk),
-        );
+        new Uint8Array(frame, 4 + headerBytes.byteLength).set(chunk);
 
+        hasher?.add(chunk);
         if (!this.socket.sendBinary(frame)) {
           this.fail(id, UploadError.Disconnected, {
             message: `Connection lost while sending ${info.name}.`,
@@ -389,6 +439,8 @@ class ThrowFileUpload {
         name: info.name,
         fileType: info.type,
         size: info.size,
+        // Lets the receiver prove it got exactly these bytes.
+        sha256: hasher ? await hasher.hex() : undefined,
       });
       this.cleanup(id);
       this.dispatch("complete", { file: info });
@@ -409,10 +461,11 @@ class ThrowFileUpload {
   private async sendOverP2P(
     file: SubmitFile,
     info: UploadFileInfo,
-    connection: P2PConnection,
+    connection: P2PLink,
   ): Promise<void> {
     const { id } = info;
     const { channel } = connection;
+    const hasher = canHash() ? new ChunkHasher() : null;
     this.p2p.add(id);
     this.dispatch("start", { file: info, path: "p2p" });
 
@@ -421,6 +474,7 @@ class ThrowFileUpload {
         message: `The direct connection dropped while sending ${info.name}.`,
       });
 
+    const chunks = readChunks(file, connection.chunkSize);
     try {
       let offset = 0;
       while (offset < file.size) {
@@ -429,9 +483,11 @@ class ThrowFileUpload {
           connection.close();
           return this.finishAborted(id, info);
         }
-        let chunk: ArrayBuffer;
+        let chunk: Uint8Array<ArrayBuffer>;
         try {
-          chunk = await file.slice(offset, offset + P2P_CHUNK_BYTES).arrayBuffer();
+          const next = await chunks.next();
+          if (next.done) break;
+          chunk = next.value;
         } catch {
           sendControl(channel, { t: "abort" });
           connection.close();
@@ -443,6 +499,7 @@ class ThrowFileUpload {
         try {
           await waitForDrain(channel);
           if (channel.readyState !== "open") throw new Error("closed");
+          hasher?.add(chunk);
           channel.send(chunk);
         } catch {
           connection.close();
@@ -452,7 +509,10 @@ class ThrowFileUpload {
         this.dispatch("progress", { id, bytesSent: offset, size: file.size });
       }
 
-      sendControl(channel, { t: "done" });
+      sendControl(channel, {
+        t: "done",
+        sha256: hasher ? await hasher.hex() : undefined,
+      });
       // Closing with data still queued would drop it: wait for the buffer to
       // empty, then give the receiver a moment to read the last message.
       while (channel.readyState === "open" && channel.bufferedAmount > 0) {

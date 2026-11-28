@@ -232,6 +232,19 @@ export const DeviceCount = styled.div`
   color: var(--md-on-surface-variant);
 `;
 
+/** Result of the P2P check with the other devices on the channel. */
+export const ProbeLine = styled.div<{ $tone: "checking" | "ok" | "failed" }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-basis: 100%;
+  ${type.bodyMedium}
+  color: ${(p) =>
+    p.$tone === "ok"
+      ? "var(--md-primary)"
+      : "var(--md-on-surface-variant)"};
+`;
+
 export const CountPop = styled.b`
   display: inline-block;
   font-weight: 500;

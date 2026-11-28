@@ -37,15 +37,48 @@ export interface ReceiveSink {
   abort(): void;
 }
 
+/**
+ * Chunks arrive at 64 KB. Writing (or wrapping in a Blob) each one alone is
+ * far slower than handling a few MB at once, so both sinks gather chunks up
+ * to this size first.
+ */
+export const SINK_BATCH_BYTES = 4 * 1024 * 1024;
+
+/** Collects chunks and hands them on in batches of about SINK_BATCH_BYTES. */
+class Batcher {
+  private parts: ArrayBuffer[] = [];
+  private bytes = 0;
+
+  /** Add a chunk; returns a full batch to write, or null. */
+  add(chunk: ArrayBuffer): Blob | null {
+    this.parts.push(chunk);
+    this.bytes += chunk.byteLength;
+    return this.bytes >= SINK_BATCH_BYTES ? this.take() : null;
+  }
+
+  /** Whatever is left, or null when nothing is. */
+  take(): Blob | null {
+    if (this.parts.length === 0) return null;
+    const blob = new Blob(this.parts);
+    this.parts = [];
+    this.bytes = 0;
+    return blob;
+  }
+}
+
 export class MemorySink implements ReceiveSink {
   readonly onDisk = false;
   private chunks: Blob[] = [];
+  private batch = new Batcher();
 
   write(chunk: ArrayBuffer): void {
-    this.chunks.push(new Blob([chunk]));
+    const full = this.batch.add(chunk);
+    if (full) this.chunks.push(full);
   }
 
   async close(type: string): Promise<Blob> {
+    const rest = this.batch.take();
+    if (rest) this.chunks.push(rest);
     const blob = new Blob(this.chunks, { type });
     this.chunks = [];
     return blob;
@@ -53,6 +86,7 @@ export class MemorySink implements ReceiveSink {
 
   abort(): void {
     this.chunks = [];
+    this.batch = new Batcher();
   }
 }
 
@@ -61,6 +95,7 @@ export class DiskSink implements ReceiveSink {
   private tail: Promise<void> = Promise.resolve();
   private failed: unknown = null;
   private done = false;
+  private batch = new Batcher();
 
   constructor(
     private readonly handle: SaveFileHandle,
@@ -69,14 +104,23 @@ export class DiskSink implements ReceiveSink {
 
   write(chunk: ArrayBuffer): void {
     if (this.done) return;
+    const full = this.batch.add(chunk);
+    if (full) this.enqueue(full);
+  }
+
+  private enqueue(data: Blob): void {
     this.tail = this.tail
-      .then(() => (this.failed ? undefined : this.stream.write(chunk)))
+      .then(() => (this.failed ? undefined : this.stream.write(data)))
       .catch((error) => {
         this.failed = error;
       });
   }
 
   async close(): Promise<Blob> {
+    if (!this.done) {
+      const rest = this.batch.take();
+      if (rest) this.enqueue(rest);
+    }
     this.done = true;
     await this.tail;
     if (this.failed) {

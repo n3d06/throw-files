@@ -6,69 +6,44 @@
 // browser, encrypted end to end by DTLS, and never touch the Worker.
 //
 // Connecting borrows from croc (github.com/schollz/croc): try the direct
-// routes first (LAN, then public address via STUN), keep a relay that always
-// works as the last resort (TURN, when the Worker has keys for it), and give
-// a failed attempt one retry (an ICE restart) before giving up.
+// routes first (LAN, then public address via STUN), fall back to the relay
+// when neither works (Auto mode), and give a failed attempt one retry (an ICE
+// restart) before giving up.
 //
 // On the DataChannel, binary messages are file chunks in order, and text
 // messages are control: {"t":"done"} or {"t":"abort"}.
 
-import { httpBase } from "./backend";
 import type { ThrowSocket } from "./throw-socket";
-import { FALLBACK_ICE_SERVERS } from "./transfer-mode";
+import { ICE_SERVERS } from "./transfer-mode";
 
 /** DataChannel message size every browser handles. */
 export const P2P_CHUNK_BYTES = 64 * 1024;
-/** Pause sending once this much is queued in the DataChannel. */
-const P2P_HIGH_WATER = 4 * 1024 * 1024;
-const P2P_LOW_WATER = 1024 * 1024;
+/** Largest message worth sending; bigger ones gain little and Chrome caps here. */
+const P2P_MAX_CHUNK_BYTES = 256 * 1024;
+/**
+ * Pause sending once this much is queued in the DataChannel. Deep enough that
+ * a fast link never runs dry between refills, and well under Chrome's 16 MB
+ * send queue: going over it closes the channel outright.
+ */
+const P2P_HIGH_WATER = 8 * 1024 * 1024;
+const P2P_LOW_WATER = 2 * 1024 * 1024;
+
+/**
+ * Message size for a connection: as large as both sides accept (SDP
+ * max-message-size), up to 256 KB. Fewer, larger messages cost less per byte.
+ */
+export function p2pChunkSize(pc: RTCPeerConnection): number {
+  const max = pc.sctp?.maxMessageSize ?? 0;
+  if (!(max > 0)) return P2P_CHUNK_BYTES;
+  return Math.max(16 * 1024, Math.min(P2P_MAX_CHUNK_BYTES, max));
+}
 
 type Signal =
   | { kind: "description"; description: RTCSessionDescriptionInit }
   | { kind: "candidate"; candidate: RTCIceCandidateInit };
 
-export type P2PControl = { t: "done" } | { t: "abort" };
-
-// ── ICE servers ─────────────────────────────────────────────────────────────
-
-/** TURN credentials last hours; refetch well before they expire. */
-const ICE_CACHE_MS = 60 * 60 * 1000;
-const ICE_FETCH_TIMEOUT_MS = 3_000;
-let iceCache: { at: number; servers: Promise<RTCIceServer[]> } | null = null;
-
-/**
- * STUN plus, when the Worker has TURN keys, TURN servers with fresh
- * credentials. Falls back to public STUN if the Worker can't be reached.
- */
-export function getIceServers(): Promise<RTCIceServer[]> {
-  if (iceCache && Date.now() - iceCache.at < ICE_CACHE_MS) return iceCache.servers;
-  const servers = (async () => {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), ICE_FETCH_TIMEOUT_MS);
-      const res = await fetch(`${httpBase()}/ice`, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(String(res.status));
-      const body = (await res.json()) as { iceServers?: RTCIceServer[] };
-      if (!Array.isArray(body.iceServers) || body.iceServers.length === 0) {
-        throw new Error("no ICE servers");
-      }
-      return body.iceServers;
-    } catch {
-      iceCache = null; // ask the Worker again next time
-      return FALLBACK_ICE_SERVERS;
-    }
-  })();
-  iceCache = { at: Date.now(), servers };
-  return servers;
-}
-
-/** Whether a server list includes a TURN relay. */
-export function hasTurn(servers: RTCIceServer[]): boolean {
-  return servers.some((s) =>
-    (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => u.startsWith("turn")),
-  );
-}
+/** "done" carries the file's hash (see integrity.ts) when the sender had one. */
+export type P2PControl = { t: "done"; sha256?: string } | { t: "abort" };
 
 // ── Diagnostics ─────────────────────────────────────────────────────────────
 
@@ -91,8 +66,6 @@ export function explainFailure(diag: {
   local: string[];
   remote: string[];
   state: string;
-  /** Whether this side was given a TURN server. */
-  turn?: boolean;
 }): string {
   const list = (kinds: string[]) => (kinds.length ? kinds.join(", ") : "none");
   const facts = `This device: ${list(diag.local)}. Other device: ${list(diag.remote)}. State: ${diag.state}.`;
@@ -107,17 +80,12 @@ export function explainFailure(diag: {
     hint =
       "Both sides found addresses but couldn't reach each other: usually a firewall (Windows set to a Public network), Wi-Fi client isolation, or a router without NAT hairpinning.";
   }
-  if (!diag.turn && !diag.local.includes("relay") && !diag.remote.includes("relay")) {
-    hint +=
-      " No TURN server is set up, so strict NAT (most mobile data) can't be crossed.";
-  }
   return `${hint} ${facts}`;
 }
 
 /** Name the path a connected candidate pair takes. */
 export function describeRoute(local?: string, remote?: string): string | null {
   if (!local || !remote) return null;
-  if (local === "relay" || remote === "relay") return "TURN relay";
   if (local === "host" && remote === "host") return "direct (LAN)";
   return "direct (internet)";
 }
@@ -129,8 +97,6 @@ class Link {
   readonly pc: RTCPeerConnection;
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private closed = false;
-  /** Whether this side was given a TURN server. */
-  private readonly turn: boolean;
   /** Candidate kinds seen on each side, for failure diagnostics. */
   private readonly localKinds = new Set<string>();
   private readonly remoteKinds = new Set<string>();
@@ -152,11 +118,9 @@ class Link {
   constructor(
     private readonly socket: ThrowSocket,
     private readonly id: string,
-    iceServers: RTCIceServer[],
     private readonly onRemoteOffer?: () => Promise<void>,
   ) {
-    this.pc = new RTCPeerConnection({ iceServers });
-    this.turn = hasTurn(iceServers);
+    this.pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     socket.on("rtc", this.onSignal);
     this.pc.onicecandidate = ({ candidate }) => {
       if (!candidate || !candidate.candidate) return;
@@ -172,7 +136,6 @@ class Link {
       local: [...this.localKinds],
       remote: [...this.remoteKinds],
       state: this.pc.iceConnectionState,
-      turn: this.turn,
     });
   }
 
@@ -242,7 +205,9 @@ class Link {
 /** An open DataChannel and how to tear it down. */
 export interface P2PConnection {
   channel: RTCDataChannel;
-  /** "direct (LAN)", "direct (internet)", "TURN relay", or null. */
+  /** The peer connection; more DataChannels can be opened on it. */
+  pc: RTCPeerConnection;
+  /** "direct (LAN)", "direct (internet)", or null. */
   route: string | null;
   close(): void;
 }
@@ -257,7 +222,7 @@ export async function connectAsSender(
   id: string,
   timeoutMs: number,
 ): Promise<P2PConnection> {
-  const link = new Link(socket, id, await getIceServers());
+  const link = new Link(socket, id);
   const channel = link.pc.createDataChannel("file", { ordered: true });
   channel.binaryType = "arraybuffer";
 
@@ -298,7 +263,7 @@ export async function connectAsSender(
       clearTimeout(timer);
       const route = await link.route();
       console.info(`[p2p] connected: ${route ?? "route unknown"}`);
-      resolve({ channel, route, close: () => link.close() });
+      resolve({ channel, route, pc: link.pc, close: () => link.close() });
     };
     offer(false).catch(() => fail("Could not start a P2P connection"));
   });
@@ -310,12 +275,11 @@ export async function connectAsSender(
  * never offers (it chose the relay); call `close()` when the transfer ends.
  * Resolve this before accepting, so the first offer is not missed.
  */
-export async function listenAsReceiver(
+export function listenAsReceiver(
   socket: ThrowSocket,
   id: string,
-  onChannel: (channel: RTCDataChannel, route: string | null) => void,
-): Promise<{ close(): void; describe(): string }> {
-  const iceServers = await getIceServers();
+  onChannel: (channel: RTCDataChannel, route: Promise<string | null>) => void,
+): { close(): void; describe(): string; pc: RTCPeerConnection } {
   // eslint-disable-next-line prefer-const
   let link: Link;
   const answer = async () => {
@@ -323,14 +287,16 @@ export async function listenAsReceiver(
     await link.pc.setLocalDescription(description);
     link.send({ kind: "description", description });
   };
-  link = new Link(socket, id, iceServers, answer);
+  link = new Link(socket, id, answer);
   link.pc.ondatachannel = ({ channel }) => {
     channel.binaryType = "arraybuffer";
-    const opened = async () => onChannel(channel, await link.route());
-    if (channel.readyState === "open") void opened();
-    else channel.onopen = () => void opened();
+    // Hand the channel over synchronously, so its message handler is set
+    // before the first chunk can arrive; the route is looked up meanwhile.
+    const opened = () => onChannel(channel, link.route());
+    if (channel.readyState === "open") opened();
+    else channel.onopen = opened;
   };
-  return { close: () => link.close(), describe: () => link.describe() };
+  return { close: () => link.close(), describe: () => link.describe(), pc: link.pc };
 }
 
 /** Resolve once the channel's send buffer has drained below the low mark. */
@@ -358,8 +324,12 @@ export function sendControl(channel: RTCDataChannel, message: P2PControl): void 
 
 export function parseControl(data: string): P2PControl | null {
   try {
-    const message = JSON.parse(data) as P2PControl;
-    return message?.t === "done" || message?.t === "abort" ? message : null;
+    const message = JSON.parse(data) as { t?: unknown; sha256?: unknown };
+    if (message?.t === "abort") return { t: "abort" };
+    if (message?.t !== "done") return null;
+    return typeof message.sha256 === "string" && /^[0-9a-f]{64}$/.test(message.sha256)
+      ? { t: "done", sha256: message.sha256 }
+      : { t: "done" };
   } catch {
     return null;
   }

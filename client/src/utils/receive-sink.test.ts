@@ -1,5 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
-import { DiskSink, MemorySink, type SaveFileHandle } from "./receive-sink";
+import {
+  DiskSink,
+  MemorySink,
+  SINK_BATCH_BYTES,
+  type SaveFileHandle,
+} from "./receive-sink";
 
 const bytes = (...values: number[]) => new Uint8Array(values).buffer;
 
@@ -7,7 +12,8 @@ function fakeHandle() {
   const written: number[] = [];
   const stream = {
     write: vi.fn(async (data: ArrayBuffer | Blob) => {
-      written.push(...new Uint8Array(data as ArrayBuffer));
+      const buffer = data instanceof Blob ? await data.arrayBuffer() : data;
+      for (const b of new Uint8Array(buffer)) written.push(b);
     }),
     close: vi.fn(async () => {}),
     abort: vi.fn(async () => {}),
@@ -63,6 +69,17 @@ describe("DiskSink", () => {
     sink.write(bytes(2));
     await new Promise((r) => setTimeout(r, 0));
     expect(stream.abort).toHaveBeenCalledOnce();
-    expect(stream.write).toHaveBeenCalledTimes(1);
+    expect(stream.write).not.toHaveBeenCalled();
+  });
+
+  test("gathers small chunks into few large writes", async () => {
+    const { handle, stream } = fakeHandle();
+    const sink = new DiskSink(handle, stream);
+    const chunk = new Uint8Array(64 * 1024).fill(7).buffer;
+    const count = (SINK_BATCH_BYTES / chunk.byteLength) * 2 + 3;
+    for (let i = 0; i < count; i++) sink.write(chunk);
+    const file = await sink.close();
+    expect(stream.write).toHaveBeenCalledTimes(3); // two full batches + the rest
+    expect(file.size).toBe(count * chunk.byteLength);
   });
 });

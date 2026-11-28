@@ -92,23 +92,6 @@ them with a 308 redirect to the same path and query on `tf.n3d.site`
 The frontend reads its URLs from `client/.env.production` at **build** time, so
 changing them needs a rebuild before `wrangler deploy`.
 
-### P2P across networks (TURN)
-
-P2P works out of the box on the same network and through most home routers
-(STUN). Strict NAT, which most mobile data uses, needs a TURN server. The
-Worker hands one out from `/ice` once it has a Cloudflare Realtime TURN key
-(Dashboard → Realtime → TURN Server → Create; the free tier covers 1 TB a
-month):
-
-```sh
-npx wrangler secret put TURN_KEY_ID
-npx wrangler secret put TURN_KEY_API_TOKEN
-```
-
-Over TURN the DataChannel is still DTLS-encrypted end to end; TURN only
-forwards ciphertext. In the browser console, `[p2p] connected:` shows whether
-a transfer went `direct (LAN)`, `direct (internet)` or through the `TURN relay`.
-
 ### Automatic deploy (Cloudflare Workers Builds)
 
 There is no GitHub Actions workflow. Instead the Worker is connected to this

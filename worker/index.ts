@@ -21,87 +21,6 @@ const CHANNEL_CODE = /^[A-Z0-9]{6}$/;
 interface Env {
   THROW_FILES_CHANNEL: DurableObjectNamespace;
   ASSETS: Fetcher;
-  /** Cloudflare Realtime TURN key (optional; set with `wrangler secret put`). */
-  TURN_KEY_ID?: string;
-  TURN_KEY_API_TOKEN?: string;
-}
-
-/**
- * STUN only tells each browser its public address. Two of them, so one
- * provider being unreachable (some networks block it) does not stop P2P.
- */
-const STUN_SERVERS = [
-  { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
-];
-
-/**
- * TURN credentials live long enough for a large transfer: the browser has to
- * refresh its TURN allocation with them while the DataChannel is in use.
- */
-const TURN_CREDENTIAL_TTL_S = 6 * 60 * 60;
-
-/**
- * ICE servers for WebRTC. Like croc, which always has its relay to fall back
- * on when the two machines can't reach each other directly, a TURN server
- * keeps P2P working through symmetric / carrier-grade NAT (mobile data). The
- * DataChannel stays DTLS-encrypted end to end, so TURN only sees ciphertext.
- * Without TURN keys configured this returns STUN only.
- */
-async function iceServersResponse(request: Request, env: Env): Promise<Response> {
-  const headers = {
-    ...corsHeaders(request),
-    "Content-Type": "application/json",
-    "Cache-Control": "no-store",
-  };
-  // Only hand TURN credentials to this site's own pages.
-  const sameSite = request.headers.get("Sec-Fetch-Site") === "same-origin";
-  if (!sameSite && !isAllowedOrigin(request.headers.get("Origin"))) {
-    return new Response(JSON.stringify({ iceServers: STUN_SERVERS }), { headers });
-  }
-
-  const iceServers: RTCIceServerLike[] = [...STUN_SERVERS];
-  if (env.TURN_KEY_ID && env.TURN_KEY_API_TOKEN) {
-    try {
-      const res = await fetch(
-        `https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.TURN_KEY_API_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ ttl: TURN_CREDENTIAL_TTL_S }),
-        },
-      );
-      if (res.ok) {
-        const body = (await res.json()) as {
-          iceServers?: RTCIceServerLike | RTCIceServerLike[];
-        };
-        const list = Array.isArray(body.iceServers)
-          ? body.iceServers
-          : body.iceServers
-            ? [body.iceServers]
-            : [];
-        for (const server of list) {
-          const urls = (Array.isArray(server.urls) ? server.urls : [server.urls])
-            // Browsers can't use port 53; those URLs only add timeouts.
-            .filter((u) => u.startsWith("turn") && !/:53(\?|$)/.test(u));
-          if (urls.length) iceServers.push({ ...server, urls });
-        }
-      } else {
-        console.error("TURN credential request failed:", res.status);
-      }
-    } catch (error) {
-      console.error("TURN credential request failed:", error);
-    }
-  }
-  return new Response(JSON.stringify({ iceServers }), { headers });
-}
-
-interface RTCIceServerLike {
-  urls: string | string[];
-  username?: string;
-  credential?: string;
 }
 
 /**
@@ -175,10 +94,6 @@ export default {
       // throughput of a single-threaded DO.
       const id = env.THROW_FILES_CHANNEL.idFromName(`channel:${channel}`);
       return env.THROW_FILES_CHANNEL.get(id).fetch(request);
-    }
-
-    if (url.pathname === "/ice") {
-      return iceServersResponse(request, env);
     }
 
     if (url.pathname === "/health") {

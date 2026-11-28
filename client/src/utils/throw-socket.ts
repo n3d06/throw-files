@@ -8,6 +8,7 @@
 //   [uint32 big-endian: header byte length][header JSON][chunk bytes]
 
 import { wsBase } from "./backend";
+import { parseHash } from "./integrity";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventHandler = (data?: any) => void;
@@ -263,6 +264,7 @@ export class ThrowSocket {
           name: msg.name,
           type: msg.fileType,
           size: msg.size,
+          sha256: parseHash(msg.sha256),
         });
         break;
       case "file-abort":
@@ -286,7 +288,11 @@ export class ThrowSocket {
       case "file-accept":
       case "file-decline":
         if (msg.channel !== this.channel || typeof msg.id !== "string") break;
-        this.fire(msg.type, { id: msg.id, p2p: msg.p2p === true });
+        this.fire(msg.type, {
+          id: msg.id,
+          p2p: msg.p2p === true,
+          from: typeof msg.from === "string" ? msg.from : undefined,
+        });
         break;
       case "rtc":
         if (

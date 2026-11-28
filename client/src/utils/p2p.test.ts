@@ -3,7 +3,6 @@ import {
   candidateKind,
   describeRoute,
   explainFailure,
-  hasTurn,
   parseControl,
 } from "./p2p";
 
@@ -70,28 +69,18 @@ describe("parseControl", () => {
 });
 
 describe("describeRoute", () => {
-  test("names LAN, internet and TURN paths", () => {
+  test("names LAN and internet paths", () => {
     expect(describeRoute("host", "host")).toBe("direct (LAN)");
     expect(describeRoute("srflx", "host")).toBe("direct (internet)");
     expect(describeRoute("prflx", "srflx")).toBe("direct (internet)");
-    expect(describeRoute("relay", "srflx")).toBe("TURN relay");
     expect(describeRoute(undefined, "host")).toBeNull();
   });
 });
 
-describe("TURN hint", () => {
-  const diag = { local: ["srflx"], remote: ["srflx"], state: "failed" };
-  test("says TURN is missing when nobody had a relay candidate", () => {
-    expect(explainFailure(diag)).toContain("No TURN server");
-  });
-  test("stays quiet when TURN was configured", () => {
-    expect(explainFailure({ ...diag, turn: true })).not.toContain("No TURN server");
-  });
-});
-
-describe("hasTurn", () => {
-  test("spots turn: and turns: URLs", () => {
-    expect(hasTurn([{ urls: "stun:stun.example:3478" }])).toBe(false);
-    expect(hasTurn([{ urls: ["stun:a", "turns:b:443?transport=tcp"] }])).toBe(true);
+describe("parseControl with a hash", () => {
+  test("keeps a well-formed sha256 and drops a bad one", () => {
+    const sha256 = "0".repeat(64);
+    expect(parseControl(JSON.stringify({ t: "done", sha256 }))).toEqual({ t: "done", sha256 });
+    expect(parseControl(JSON.stringify({ t: "done", sha256: "nope" }))).toEqual({ t: "done" });
   });
 });

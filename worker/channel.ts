@@ -145,6 +145,11 @@ export class ThrowFilesChannel {
             name: String(msg.name ?? ""),
             fileType: String(msg.fileType ?? ""),
             size: Number(msg.size ?? 0),
+            // The sender's hash of what it sent; the receiver checks it.
+            sha256:
+              typeof msg.sha256 === "string" && /^[0-9a-f]{64}$/.test(msg.sha256)
+                ? msg.sha256
+                : undefined,
           },
           ws,
         );
@@ -173,6 +178,9 @@ export class ThrowFilesChannel {
             id: String(msg.id ?? ""),
             // The receiver is willing to take this file over WebRTC.
             p2p: msg.p2p === true,
+            // The receiver's P2P check id, so the sender can look up whether
+            // a direct connection to it already proved impossible.
+            from: typeof msg.from === "string" ? msg.from.slice(0, 64) : undefined,
           },
           ws,
         );

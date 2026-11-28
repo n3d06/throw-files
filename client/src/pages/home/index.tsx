@@ -62,7 +62,14 @@ import {
   openReceiveSink,
   type ReceiveSink,
 } from "../../utils/receive-sink";
-import { getIceServers, listenAsReceiver, parseControl } from "../../utils/p2p";
+import { listenAsReceiver, parseControl } from "../../utils/p2p";
+import { ChunkHasher, canHash } from "../../utils/integrity";
+import { RateMeter, formatTimeLeft } from "../../utils/rate";
+import {
+  P2PProbe,
+  summarizeProbes,
+  type ProbeStatus,
+} from "../../utils/p2p-probe";
 import {
   loadTransferMode,
   receiverWantsP2P,
@@ -113,6 +120,8 @@ interface Transfer {
   waiting?: boolean;
   /** How the bytes travel, once known. */
   path?: TransferPath;
+  /** Smoothed bytes per second. */
+  rate?: number;
 }
 
 /** A file another device wants to send, waiting for this user's answer. */
@@ -166,6 +175,9 @@ interface TextMessage {
 /** Oldest snippets fall off past this, so a chatty channel can't grow forever. */
 const MAX_MESSAGES = 50;
 
+/** How often transfer progress is redrawn. */
+const PROGRESS_FLUSH_MS = 150;
+
 interface ReceiveBuffer {
   /** Where chunks go: the user's chosen file, or memory as a fallback. */
   sink: ReceiveSink;
@@ -176,6 +188,8 @@ interface ReceiveBuffer {
   bytes: number;
   info: { name: string; type: string; size: number; compressed: boolean };
   timeoutId: ReturnType<typeof setTimeout>;
+  /** Hashes chunks as they arrive, to check against the sender's hash. */
+  hasher?: ChunkHasher;
 }
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
@@ -507,6 +521,19 @@ const HistoryModal = ({
 };
 
 export const Home = memo(() => {
+  /** Checks P2P with each device as soon as it joins the channel. */
+  const probeRef = useRef<P2PProbe | null>(null);
+  const [probeStatuses, setProbeStatuses] = useState<Map<string, ProbeStatus>>(
+    () => new Map(),
+  );
+  if (!probeRef.current)
+    probeRef.current = new P2PProbe(
+      socket,
+      () => receiverWantsP2P(transferModeRef.current) && supportsP2P(),
+      setProbeStatuses,
+    );
+  const probe = probeRef.current;
+
   const uploaderRef = useRef<ThrowFileUpload | null>(null);
   // An offer counts as declined once every other device on the channel says no.
   if (!uploaderRef.current)
@@ -514,6 +541,11 @@ export const Home = memo(() => {
       socket,
       () => Math.max(1, connectedUsersRef.current - 1),
       () => transferModeRef.current,
+      {
+        status: (peerId) => probeRef.current?.status(peerId),
+        openChannel: (peerId, id) =>
+          probeRef.current?.openChannel(peerId, id) ?? Promise.resolve(null),
+      },
     );
   const uploader = uploaderRef.current;
 
@@ -606,10 +638,39 @@ export const Home = memo(() => {
     });
   }, []);
 
+  /** Speed of each running transfer, for the speed and time-left readout. */
+  const rateMetersRef = useRef(new Map<string, RateMeter>());
+
+  /**
+   * Progress arrives once per chunk, which at full speed is over a thousand
+   * times a second. Re-rendering that often starved the transfer itself, so
+   * updates are collected here and drawn at most every PROGRESS_FLUSH_MS.
+   */
+  const pendingBytesRef = useRef(new Map<string, number>());
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const setTransferBytes = useCallback((id: string, bytes: number) => {
-    setTransfers((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, bytes } : t)),
-    );
+    let meter = rateMetersRef.current.get(id);
+    if (!meter) {
+      meter = new RateMeter();
+      rateMetersRef.current.set(id, meter);
+    }
+    meter.update(bytes);
+    pendingBytesRef.current.set(id, bytes);
+    if (progressTimerRef.current) return;
+    progressTimerRef.current = setTimeout(() => {
+      progressTimerRef.current = null;
+      const pending = pendingBytesRef.current;
+      pendingBytesRef.current = new Map();
+      setTransfers((prev) =>
+        prev.map((t) => {
+          const latest = pending.get(t.id);
+          return latest === undefined
+            ? t
+            : { ...t, bytes: latest, rate: rateMetersRef.current.get(t.id)?.rate };
+        }),
+      );
+    }, PROGRESS_FLUSH_MS);
   }, []);
 
   const setTransferPath = useCallback((id: string, path: TransferPath) => {
@@ -624,14 +685,54 @@ export const Home = memo(() => {
    */
   const receiveRef = useRef<{
     onChunk: (data: { id: string; file: ArrayBuffer }, path: TransferPath) => void;
-    onFileDone: (data: { id: string }) => void;
+    onFileDone: (data: { id: string; sha256?: string }) => void;
     onFileAbort: (data: { id: string }) => void;
     onP2PLost: (id: string) => void;
   } | null>(null);
 
   const dropTransfer = useCallback((id: string) => {
+    rateMetersRef.current.delete(id);
+    pendingBytesRef.current.delete(id);
     setTransfers((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  /**
+   * Feed a P2P DataChannel's messages into the shared receive path. Called
+   * synchronously when the channel opens, so no early chunk is missed.
+   */
+  const attachReceiveChannel = useCallback(
+    (id: string, channel: RTCDataChannel) => {
+      let finished = false;
+      channel.onmessage = ({ data }) => {
+        const rx = receiveRef.current;
+        if (!rx) return;
+        if (data instanceof ArrayBuffer) {
+          rx.onChunk({ id, file: data }, "p2p");
+          return;
+        }
+        const control = typeof data === "string" ? parseControl(data) : null;
+        if (control?.t === "done") {
+          finished = true;
+          rx.onFileDone({ id, sha256: control.sha256 });
+        } else if (control?.t === "abort") {
+          finished = true;
+          rx.onFileAbort({ id });
+        }
+      };
+      channel.onclose = () => {
+        if (!finished) receiveRef.current?.onP2PLost(id);
+      };
+    },
+    [],
+  );
+
+  // Files sent over the connection opened when the other device joined.
+  useEffect(() => {
+    probe.onIncomingChannel = (id, channel) => {
+      if (buffersRef.current[id]) attachReceiveChannel(id, channel);
+      else channel.close(); // not a transfer this device accepted
+    };
+  }, [probe, attachReceiveChannel]);
 
   /** Tear down a partial receive: timer, buffer and progress row together. */
   const discardBuffer = useCallback(
@@ -924,6 +1025,7 @@ export const Home = memo(() => {
           compressed: offer.compressed,
         },
         timeoutId: undefined as unknown as ReturnType<typeof setTimeout>,
+        hasher: canHash() ? new ChunkHasher() : undefined,
       };
       armTimeout(offer.id);
       upsertTransfer({
@@ -942,42 +1044,16 @@ export const Home = memo(() => {
       const p2p = receiverWantsP2P(transferModeRef.current) && supportsP2P();
       if (p2p) {
         const id = offer.id;
-        // Fetches ICE servers (TURN credentials) first, so it is listening
-        // before the sender can hear the accept and send its offer.
-        const listener = await listenAsReceiver(socket, id, (channel, route) => {
-          if (route) console.info(`[p2p] receiving ${offer.name}: ${route}`);
-          let finished = false;
-          channel.onmessage = ({ data }) => {
-            const rx = receiveRef.current;
-            if (!rx) return;
-            if (data instanceof ArrayBuffer) {
-              rx.onChunk({ id, file: data }, "p2p");
-              return;
-            }
-            const control = typeof data === "string" ? parseControl(data) : null;
-            if (control?.t === "done") {
-              finished = true;
-              rx.onFileDone({ id });
-            } else if (control?.t === "abort") {
-              finished = true;
-              rx.onFileAbort({ id });
-            }
-          };
-          channel.onclose = () => {
-            if (!finished) receiveRef.current?.onP2PLost(id);
-          };
+        // Fallback for when the sender has no open connection to this device
+        // (it reuses the one from the join-time check whenever it can).
+        buffersRef.current[id].p2p = listenAsReceiver(socket, id, (channel, route) => {
+          void route.then((r) => r && console.info(`[p2p] receiving ${offer.name}: ${r}`));
+          attachReceiveChannel(id, channel);
         });
-        const buffer = buffersRef.current[id];
-        if (!buffer) {
-          // Withdrawn while the ICE servers were being fetched.
-          listener.close();
-          return;
-        }
-        buffer.p2p = listener;
       }
-      socket.emit("file-accept", { id: offer.id, p2p });
+      socket.emit("file-accept", { id: offer.id, p2p, from: probe.selfId });
     },
-    [addToast, armTimeout, upsertTransfer],
+    [addToast, armTimeout, upsertTransfer, probe, attachReceiveChannel],
   );
 
   const declineOffer = useCallback((offer: IncomingOffer) => {
@@ -985,10 +1061,27 @@ export const Home = memo(() => {
     setOffers((prev) => prev.filter((o) => o.id !== offer.id));
   }, []);
 
-  // Fetch STUN/TURN servers up front so accepting a file isn't delayed by it.
   useEffect(() => {
-    if (supportsP2P()) void getIceServers();
-  }, []);
+    probe.start();
+    return () => probe.stop();
+  }, [probe]);
+
+  // Leaving Relay mode checks P2P again; entering it drops the results.
+  const probedModeRef = useRef(transferMode);
+  useEffect(() => {
+    const wasRelay = probedModeRef.current === "relay";
+    probedModeRef.current = transferMode;
+    if (transferMode === "relay") probe.reset();
+    else if (wasRelay) probe.restart();
+  }, [probe, transferMode]);
+
+  const probeSummary =
+    transferMode === "relay" || connectedUsers < 2
+      ? null
+      : summarizeProbes([...probeStatuses.values()]);
+  const probeDetail = [...probeStatuses.values()]
+    .flatMap((s) => (s.state === "failed" ? [s.detail] : []))
+    .join("\n");
 
   // ── Socket wiring (registered once) ───────────────────────────────────────
 
@@ -1069,13 +1162,14 @@ export const Home = memo(() => {
         return;
       }
 
+      buffer.hasher?.add(data.file);
       buffer.sink.write(data.file);
       buffer.bytes += data.file.byteLength;
       armTimeout(data.id);
       setTransferBytes(data.id, buffer.bytes);
     };
 
-    const onFileDone = async (data: { id: string; name?: string }) => {
+    const onFileDone = async (data: { id: string; name?: string; sha256?: string }) => {
       const buffer = buffersRef.current[data.id];
       if (!buffer) return;
 
@@ -1094,6 +1188,28 @@ export const Home = memo(() => {
           "error",
         );
         return;
+      }
+
+      // Same size is not proof of same bytes: compare with the sender's hash.
+      let verified = false;
+      if (data.sha256 && buffer.hasher) {
+        let ours: string | null = null;
+        try {
+          ours = await buffer.hasher.hex();
+        } catch {
+          /* hashing unavailable: saved, but not reported as verified */
+        }
+        if (ours !== null && ours !== data.sha256) {
+          buffer.sink.abort();
+          console.info(`[integrity] ${buffer.info.name}: expected ${data.sha256}, got ${ours}`);
+          addToast(
+            "File corrupted",
+            `${buffer.info.name} didn't match what was sent (SHA-256), so it was discarded. Send it again.`,
+            "error",
+          );
+          return;
+        }
+        verified = ours === data.sha256;
       }
 
       let blob: Blob;
@@ -1136,11 +1252,12 @@ export const Home = memo(() => {
         direction: "receive",
       });
       vibrate();
+      const check = verified ? " Integrity verified (SHA-256)." : "";
       addToast(
         onDisk ? "File saved" : "File ready",
         onDisk
-          ? `${buffer.info.name} is saved where you chose.`
-          : `${buffer.info.name} — press Save to download it.`,
+          ? `${buffer.info.name} is saved where you chose.${check}`
+          : `${buffer.info.name} — press Save to download it.${check}`,
         "success",
       );
     };
@@ -1205,7 +1322,7 @@ export const Home = memo(() => {
 
     // Relay "file-done" only finishes relay transfers; P2P ones finish on
     // the DataChannel's own "done".
-    const onRelayFileDone = (data: { id: string }) => {
+    const onRelayFileDone = (data: { id: string; sha256?: string }) => {
       if (buffersRef.current[data.id]?.path === "p2p") return;
       void onFileDone(data);
     };
@@ -1719,6 +1836,17 @@ export const Home = memo(() => {
                     {connectedUsers === 1 ? "device" : "devices"} on this channel
                   </span>
                 </S.DeviceCount>
+                {probeSummary && (
+                  <S.ProbeLine
+                    $tone={probeSummary.tone}
+                    role="status"
+                    aria-live="polite"
+                    title={probeDetail || undefined}
+                  >
+                    <Zap size={14} aria-hidden="true" />
+                    <span>{probeSummary.text}</span>
+                  </S.ProbeLine>
+                )}
                 </S.StatusRow>
           <S.ModeRow>
             <S.SegmentedButton role="radiogroup" aria-label="Transfer mode">
@@ -1988,6 +2116,19 @@ export const Home = memo(() => {
                     <S.ProgressInfo>
                       <S.ProgressPercent>
                         {percent.toFixed(1)}%
+                        {transfer.rate && transfer.bytes < transfer.size ? (
+                          <S.ProgressSize>
+                            {" · "}
+                            {formatFileSize(transfer.rate)}/s
+                            {(() => {
+                              const left = formatTimeLeft(
+                                transfer.size - transfer.bytes,
+                                transfer.rate,
+                              );
+                              return left ? ` · ${left}` : "";
+                            })()}
+                          </S.ProgressSize>
+                        ) : null}
                       </S.ProgressPercent>
                       <S.ProgressSize>
                         {formatFileSize(transfer.bytes)} /{" "}
