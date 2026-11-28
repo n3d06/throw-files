@@ -5,11 +5,17 @@
 // only forwards them. Once the DataChannel opens, file bytes go browser to
 // browser, encrypted end to end by DTLS, and never touch the Worker.
 //
+// Connecting borrows from croc (github.com/schollz/croc): try the direct
+// routes first (LAN, then public address via STUN), keep a relay that always
+// works as the last resort (TURN, when the Worker has keys for it), and give
+// a failed attempt one retry (an ICE restart) before giving up.
+//
 // On the DataChannel, binary messages are file chunks in order, and text
 // messages are control: {"t":"done"} or {"t":"abort"}.
 
+import { httpBase } from "./backend";
 import type { ThrowSocket } from "./throw-socket";
-import { ICE_SERVERS } from "./transfer-mode";
+import { FALLBACK_ICE_SERVERS } from "./transfer-mode";
 
 /** DataChannel message size every browser handles. */
 export const P2P_CHUNK_BYTES = 64 * 1024;
@@ -22,6 +28,49 @@ type Signal =
   | { kind: "candidate"; candidate: RTCIceCandidateInit };
 
 export type P2PControl = { t: "done" } | { t: "abort" };
+
+// ── ICE servers ─────────────────────────────────────────────────────────────
+
+/** TURN credentials last hours; refetch well before they expire. */
+const ICE_CACHE_MS = 60 * 60 * 1000;
+const ICE_FETCH_TIMEOUT_MS = 3_000;
+let iceCache: { at: number; servers: Promise<RTCIceServer[]> } | null = null;
+
+/**
+ * STUN plus, when the Worker has TURN keys, TURN servers with fresh
+ * credentials. Falls back to public STUN if the Worker can't be reached.
+ */
+export function getIceServers(): Promise<RTCIceServer[]> {
+  if (iceCache && Date.now() - iceCache.at < ICE_CACHE_MS) return iceCache.servers;
+  const servers = (async () => {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), ICE_FETCH_TIMEOUT_MS);
+      const res = await fetch(`${httpBase()}/ice`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(String(res.status));
+      const body = (await res.json()) as { iceServers?: RTCIceServer[] };
+      if (!Array.isArray(body.iceServers) || body.iceServers.length === 0) {
+        throw new Error("no ICE servers");
+      }
+      return body.iceServers;
+    } catch {
+      iceCache = null; // ask the Worker again next time
+      return FALLBACK_ICE_SERVERS;
+    }
+  })();
+  iceCache = { at: Date.now(), servers };
+  return servers;
+}
+
+/** Whether a server list includes a TURN relay. */
+export function hasTurn(servers: RTCIceServer[]): boolean {
+  return servers.some((s) =>
+    (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => u.startsWith("turn")),
+  );
+}
+
+// ── Diagnostics ─────────────────────────────────────────────────────────────
 
 /**
  * Classify an ICE candidate line: "host (mDNS)" when the browser hid the LAN
@@ -42,6 +91,8 @@ export function explainFailure(diag: {
   local: string[];
   remote: string[];
   state: string;
+  /** Whether this side was given a TURN server. */
+  turn?: boolean;
 }): string {
   const list = (kinds: string[]) => (kinds.length ? kinds.join(", ") : "none");
   const facts = `This device: ${list(diag.local)}. Other device: ${list(diag.remote)}. State: ${diag.state}.`;
@@ -56,14 +107,30 @@ export function explainFailure(diag: {
     hint =
       "Both sides found addresses but couldn't reach each other: usually a firewall (Windows set to a Public network), Wi-Fi client isolation, or a router without NAT hairpinning.";
   }
+  if (!diag.turn && !diag.local.includes("relay") && !diag.remote.includes("relay")) {
+    hint +=
+      " No TURN server is set up, so strict NAT (most mobile data) can't be crossed.";
+  }
   return `${hint} ${facts}`;
 }
 
+/** Name the path a connected candidate pair takes. */
+export function describeRoute(local?: string, remote?: string): string | null {
+  if (!local || !remote) return null;
+  if (local === "relay" || remote === "relay") return "TURN relay";
+  if (local === "host" && remote === "host") return "direct (LAN)";
+  return "direct (internet)";
+}
+
+// ── Peer connection ─────────────────────────────────────────────────────────
+
 /** A peer connection for one transfer, plus its signalling subscription. */
 class Link {
-  readonly pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  readonly pc: RTCPeerConnection;
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private closed = false;
+  /** Whether this side was given a TURN server. */
+  private readonly turn: boolean;
   /** Candidate kinds seen on each side, for failure diagnostics. */
   private readonly localKinds = new Set<string>();
   private readonly remoteKinds = new Set<string>();
@@ -75,17 +142,24 @@ class Link {
     } catch {
       return;
     }
-    void this.handle(signal);
+    // Signals are applied strictly in arrival order: an answer must be set
+    // before the candidates that follow it, and an ICE-restart offer after
+    // the first exchange has finished.
+    this.queue = this.queue.then(() => this.handle(signal));
   };
+  private queue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly socket: ThrowSocket,
     private readonly id: string,
+    iceServers: RTCIceServer[],
     private readonly onRemoteOffer?: () => Promise<void>,
   ) {
+    this.pc = new RTCPeerConnection({ iceServers });
+    this.turn = hasTurn(iceServers);
     socket.on("rtc", this.onSignal);
     this.pc.onicecandidate = ({ candidate }) => {
-      if (!candidate) return;
+      if (!candidate || !candidate.candidate) return;
       const kind = candidateKind(candidate.candidate);
       if (kind) this.localKinds.add(kind);
       this.send({ kind: "candidate", candidate: candidate.toJSON() });
@@ -98,7 +172,32 @@ class Link {
       local: [...this.localKinds],
       remote: [...this.remoteKinds],
       state: this.pc.iceConnectionState,
+      turn: this.turn,
     });
+  }
+
+  /** How the connected pair reaches each other, or null if unknown. */
+  async route(): Promise<string | null> {
+    try {
+      const stats = await this.pc.getStats();
+      let pairId: string | undefined;
+      stats.forEach((r) => {
+        if (r.type === "transport" && r.selectedCandidatePairId) {
+          pairId = r.selectedCandidatePairId;
+        }
+      });
+      let pair: { localCandidateId?: string; remoteCandidateId?: string } | undefined;
+      stats.forEach((r) => {
+        if (r.type !== "candidate-pair") return;
+        if (pairId ? r.id === pairId : r.nominated && r.state === "succeeded") pair = r;
+      });
+      if (!pair) return null;
+      const local = pair.localCandidateId ? stats.get(pair.localCandidateId) : undefined;
+      const remote = pair.remoteCandidateId ? stats.get(pair.remoteCandidateId) : undefined;
+      return describeRoute(local?.candidateType, remote?.candidateType);
+    } catch {
+      return null;
+    }
   }
 
   send(signal: Signal): void {
@@ -106,6 +205,7 @@ class Link {
   }
 
   private async handle(signal: Signal): Promise<void> {
+    if (this.closed) return;
     try {
       if (signal.kind === "candidate") {
         const kind = candidateKind(signal.candidate.candidate ?? "");
@@ -115,12 +215,15 @@ class Link {
         return;
       }
       await this.pc.setRemoteDescription(signal.description);
-      for (const c of this.pendingCandidates.splice(0)) await this.pc.addIceCandidate(c);
+      for (const c of this.pendingCandidates.splice(0)) {
+        await this.pc.addIceCandidate(c).catch(() => undefined);
+      }
       if (signal.description.type === "offer" && this.onRemoteOffer) {
         await this.onRemoteOffer();
       }
-    } catch {
-      /* a bad or late signal: the connect timeout reports the failure */
+    } catch (error) {
+      // A bad or late signal: the connect timeout reports the failure.
+      console.info("[p2p] signal ignored:", error);
     }
   }
 
@@ -139,24 +242,31 @@ class Link {
 /** An open DataChannel and how to tear it down. */
 export interface P2PConnection {
   channel: RTCDataChannel;
+  /** "direct (LAN)", "direct (internet)", "TURN relay", or null. */
+  route: string | null;
   close(): void;
 }
 
 /**
  * Sender side: offer a DataChannel for transfer `id` and wait for it to open.
- * Rejects (and cleans up) if it is not open within `timeoutMs`.
+ * If ICE fails, it restarts once (new candidates, same channel) before giving
+ * up. Rejects (and cleans up) if it is not open within `timeoutMs`.
  */
-export function connectAsSender(
+export async function connectAsSender(
   socket: ThrowSocket,
   id: string,
   timeoutMs: number,
 ): Promise<P2PConnection> {
-  const link = new Link(socket, id);
+  const link = new Link(socket, id, await getIceServers());
   const channel = link.pc.createDataChannel("file", { ordered: true });
   channel.binaryType = "arraybuffer";
 
   return new Promise<P2PConnection>((resolve, reject) => {
+    let settled = false;
+    let restarted = false;
     const fail = (reason: string) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       // Read the diagnostics before close() tears the connection down.
       const detail = link.describe();
@@ -165,22 +275,32 @@ export function connectAsSender(
       reject(new Error(`${reason}. ${detail}`));
     };
     const timer = setTimeout(() => fail("P2P connection timed out"), timeoutMs);
+
+    const offer = async (iceRestart: boolean) => {
+      const description = await link.pc.createOffer({ iceRestart });
+      await link.pc.setLocalDescription(description);
+      link.send({ kind: "description", description });
+    };
+
     link.pc.onconnectionstatechange = () => {
-      if (link.pc.connectionState === "failed") fail("P2P connection failed");
+      if (link.pc.connectionState !== "failed" || settled) return;
+      if (restarted) return fail("P2P connection failed");
+      // Like croc trying an alternate route before giving up: gather fresh
+      // candidates (a NAT mapping may have changed, a slow STUN reply may
+      // now arrive) and try every pair again.
+      restarted = true;
+      console.info("[p2p] connection failed, restarting ICE once");
+      offer(true).catch(() => fail("P2P connection failed"));
     };
-    channel.onopen = () => {
+    channel.onopen = async () => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      resolve({ channel, close: () => link.close() });
+      const route = await link.route();
+      console.info(`[p2p] connected: ${route ?? "route unknown"}`);
+      resolve({ channel, route, close: () => link.close() });
     };
-    void (async () => {
-      try {
-        const offer = await link.pc.createOffer();
-        await link.pc.setLocalDescription(offer);
-        link.send({ kind: "description", description: offer });
-      } catch {
-        fail("Could not start a P2P connection");
-      }
-    })();
+    offer(false).catch(() => fail("Could not start a P2P connection"));
   });
 }
 
@@ -188,12 +308,14 @@ export function connectAsSender(
  * Receiver side: wait for the sender's offer for transfer `id`, answer it,
  * and hand over the DataChannel once it opens. Nothing happens if the sender
  * never offers (it chose the relay); call `close()` when the transfer ends.
+ * Resolve this before accepting, so the first offer is not missed.
  */
-export function listenAsReceiver(
+export async function listenAsReceiver(
   socket: ThrowSocket,
   id: string,
-  onChannel: (channel: RTCDataChannel) => void,
-): { close(): void; describe(): string } {
+  onChannel: (channel: RTCDataChannel, route: string | null) => void,
+): Promise<{ close(): void; describe(): string }> {
+  const iceServers = await getIceServers();
   // eslint-disable-next-line prefer-const
   let link: Link;
   const answer = async () => {
@@ -201,11 +323,12 @@ export function listenAsReceiver(
     await link.pc.setLocalDescription(description);
     link.send({ kind: "description", description });
   };
-  link = new Link(socket, id, answer);
+  link = new Link(socket, id, iceServers, answer);
   link.pc.ondatachannel = ({ channel }) => {
     channel.binaryType = "arraybuffer";
-    if (channel.readyState === "open") onChannel(channel);
-    else channel.onopen = () => onChannel(channel);
+    const opened = async () => onChannel(channel, await link.route());
+    if (channel.readyState === "open") void opened();
+    else channel.onopen = () => void opened();
   };
   return { close: () => link.close(), describe: () => link.describe() };
 }

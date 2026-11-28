@@ -11,12 +11,18 @@ export const TRANSFER_MODES: readonly TransferMode[] = ["auto", "p2p", "relay"];
 
 export const TRANSFER_MODE_STORAGE_KEY = "throwmyfile-transfer-mode";
 
-/** How long a P2P attempt may take to open before it counts as failed. */
-export const P2P_CONNECT_TIMEOUT_MS = 8_000;
+/**
+ * How long a P2P attempt may take to open before it counts as failed. Long
+ * enough for one ICE restart; croc likewise gives an alternate route 10 s.
+ */
+export const P2P_CONNECT_TIMEOUT_MS = 12_000;
 
-/** Free public STUN: tells each browser its public address. No data passes it. */
-export const ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.cloudflare.com:3478" },
+/**
+ * Used when the Worker's /ice endpoint can't be reached: free public STUN,
+ * which tells each browser its public address. No data passes it.
+ */
+export const FALLBACK_ICE_SERVERS: RTCIceServer[] = [
+  { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
 ];
 
 export function loadTransferMode(): TransferMode {

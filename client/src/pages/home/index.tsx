@@ -62,7 +62,7 @@ import {
   openReceiveSink,
   type ReceiveSink,
 } from "../../utils/receive-sink";
-import { listenAsReceiver, parseControl } from "../../utils/p2p";
+import { getIceServers, listenAsReceiver, parseControl } from "../../utils/p2p";
 import {
   loadTransferMode,
   receiverWantsP2P,
@@ -942,7 +942,10 @@ export const Home = memo(() => {
       const p2p = receiverWantsP2P(transferModeRef.current) && supportsP2P();
       if (p2p) {
         const id = offer.id;
-        buffersRef.current[id].p2p = listenAsReceiver(socket, id, (channel) => {
+        // Fetches ICE servers (TURN credentials) first, so it is listening
+        // before the sender can hear the accept and send its offer.
+        const listener = await listenAsReceiver(socket, id, (channel, route) => {
+          if (route) console.info(`[p2p] receiving ${offer.name}: ${route}`);
           let finished = false;
           channel.onmessage = ({ data }) => {
             const rx = receiveRef.current;
@@ -964,6 +967,13 @@ export const Home = memo(() => {
             if (!finished) receiveRef.current?.onP2PLost(id);
           };
         });
+        const buffer = buffersRef.current[id];
+        if (!buffer) {
+          // Withdrawn while the ICE servers were being fetched.
+          listener.close();
+          return;
+        }
+        buffer.p2p = listener;
       }
       socket.emit("file-accept", { id: offer.id, p2p });
     },
@@ -973,6 +983,11 @@ export const Home = memo(() => {
   const declineOffer = useCallback((offer: IncomingOffer) => {
     socket.emit("file-decline", { id: offer.id });
     setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+  }, []);
+
+  // Fetch STUN/TURN servers up front so accepting a file isn't delayed by it.
+  useEffect(() => {
+    if (supportsP2P()) void getIceServers();
   }, []);
 
   // ── Socket wiring (registered once) ───────────────────────────────────────

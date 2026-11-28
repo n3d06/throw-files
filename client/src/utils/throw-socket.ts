@@ -7,6 +7,8 @@
 // Binary frames carry file chunks with a length-prefixed JSON header:
 //   [uint32 big-endian: header byte length][header JSON][chunk bytes]
 
+import { wsBase } from "./backend";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventHandler = (data?: any) => void;
 
@@ -27,15 +29,6 @@ export type ConnectionState =
   | "reconnecting"
   | "failed";
 
-const BACKEND_URL: string =
-  (window as { ENV?: { REACT_APP_BACKEND_URL?: string } }).ENV
-    ?.REACT_APP_BACKEND_URL ||
-  process.env.REACT_APP_BACKEND_URL ||
-  (typeof window !== "undefined" && window.location.hostname === "localhost"
-    ? "http://localhost:8787"
-    : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`);
-
-const WS_BASE = BACKEND_URL.replace(/^http/, "ws").replace(/\/$/, "");
 
 const PING_INTERVAL_MS = 25_000;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -121,7 +114,7 @@ export class ThrowSocket {
     this.setState(this.reconnectAttempts > 0 ? "reconnecting" : "connecting");
 
     const ws = new WebSocket(
-      `${WS_BASE}/?channel=${encodeURIComponent(this.channel)}`,
+      `${wsBase()}/?channel=${encodeURIComponent(this.channel)}`,
     );
     ws.binaryType = "arraybuffer";
     this.ws = ws;
